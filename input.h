@@ -1,0 +1,23 @@
+/*
+ * Copyright (c) 2014 The Chromium OS Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+#ifndef INPUT_H
+#define INPUT_H
+
+#include <linux/input.h>
+
+struct input_key_event {
+	uint16_t code;
+	unsigned char value;
+};
+
+int input_init();
+void input_close();
+struct input_key_event *input_get_event();
+void input_put_event(struct input_key_event *event);
+int input_get_fd();
+
+#endif
