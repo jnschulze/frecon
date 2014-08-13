@@ -253,7 +253,7 @@ destroy_buffer:
 	return ret;
 }
 
-int video_init(int32_t * width, int32_t * height, int32_t * pitch)
+int video_init(int32_t * width, int32_t * height, int32_t * pitch, int32_t * scaling)
 {
 	fd = kms_open();
 
@@ -295,6 +295,20 @@ int video_init(int32_t * width, int32_t * height, int32_t * pitch)
 
 	*width = crtc->mode.hdisplay;
 	*height = crtc->mode.vdisplay;
+
+	if (!main_monitor_connector->mmWidth)
+		*scaling = 1;
+	else {
+		int dots_per_cm = *width * 10 / main_monitor_connector->mmWidth;
+		if (dots_per_cm > 133)
+			*scaling = 4;
+		else if (dots_per_cm > 100)
+			*scaling = 3;
+		else if (dots_per_cm > 67)
+			*scaling = 2;
+		else
+			*scaling = 1;
+	}
 
 	drmModeFreeResources(resources);
 	drmModeFreeConnector(main_monitor_connector);

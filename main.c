@@ -9,17 +9,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "font.h"
 #include "input.h"
 #include "term.h"
 #include "video.h"
 
 int main()
 {
-	int32_t width, height, pitch;
+	int32_t width, height, pitch, scaling;
 	int ret;
 
-	ret = video_init(&width, &height, &pitch);
+	ret = video_init(&width, &height, &pitch, &scaling);
 	if (ret) {
 		printf("Video init failed\n");
 		return EXIT_FAILURE;
@@ -32,7 +31,7 @@ int main()
 		return EXIT_FAILURE;
 	}
 
-	ret = term_init(width, height, pitch);
+	ret = term_init(width, height, pitch, scaling);
 	if (ret) {
 		printf("Term init failed\n");
 		input_close();

@@ -9,7 +9,7 @@
 
 #include "input.h"
 
-int term_init(int32_t width, int32_t height, int32_t pitch);
+int term_init(int32_t width, int32_t height, int32_t pitch, int32_t scaling);
 void term_close();
 void term_redraw();
 int term_run();

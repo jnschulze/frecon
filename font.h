@@ -7,6 +7,7 @@
 #ifndef FONT_H
 #define FONT_H
 
+void font_init(int scaling);
 void font_fillchar(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
 		   int32_t pitch, uint32_t front_color, uint32_t back_color);
 void font_render(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,

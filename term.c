@@ -267,12 +267,13 @@ int term_run()
 	return 0;
 }
 
-int term_init(int32_t width, int32_t height, int32_t pitch)
+int term_init(int32_t width, int32_t height, int32_t pitch, int32_t scaling)
 {
 	const int scrollback_size = 200;
 	uint32_t char_width, char_height;
 	int ret;
 
+	font_init(scaling);
 	font_get_size(&char_width, &char_height);
 
 	term.char_x = width / char_width;

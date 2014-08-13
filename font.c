@@ -12,22 +12,29 @@
 #define GLYPH_WIDTH 8
 #define GLYPH_HEIGHT 16
 
+static int font_scaling;
+
 static const uint8_t glyphs[256][GLYPH_WIDTH * GLYPH_HEIGHT];
+
+void font_init(int scaling)
+{
+	font_scaling = scaling;
+}
 
 void font_get_size(uint32_t * char_width, uint32_t * char_height)
 {
-	*char_width = GLYPH_WIDTH;
-	*char_height = GLYPH_HEIGHT;
+	*char_width = GLYPH_WIDTH * font_scaling;
+	*char_height = GLYPH_HEIGHT * font_scaling;
 }
 
 void font_fillchar(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
 		   int32_t pitch, uint32_t front_color, uint32_t back_color)
 {
-	int dst_x = dst_char_x * GLYPH_WIDTH;
-	int dst_y = dst_char_y * GLYPH_HEIGHT;
+	int dst_x = dst_char_x * GLYPH_WIDTH * font_scaling;
+	int dst_y = dst_char_y * GLYPH_HEIGHT * font_scaling;
 
-	for (int j = 0; j < GLYPH_HEIGHT; j++)
-		for (int i = 0; i < GLYPH_WIDTH; i++)
+	for (int j = 0; j < GLYPH_HEIGHT * font_scaling; j++)
+		for (int i = 0; i < GLYPH_WIDTH * font_scaling; i++)
 			dst_pointer[dst_x + i + (dst_y + j) * pitch / 4] =
 			    back_color;
 }
@@ -36,8 +43,8 @@ void font_render(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
 		 int32_t pitch, uint8_t ch, uint32_t front_color,
 		 uint32_t back_color)
 {
-	int dst_x = dst_char_x * GLYPH_WIDTH;
-	int dst_y = dst_char_y * GLYPH_HEIGHT;
+	int dst_x = dst_char_x * GLYPH_WIDTH * font_scaling;
+	int dst_y = dst_char_y * GLYPH_HEIGHT * font_scaling;
 
 	if (ch >= ARRAY_SIZE(glyphs))
 		ch = '?';
@@ -45,14 +52,11 @@ void font_render(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
 	for (int j = 0; j < GLYPH_HEIGHT; j++)
 		for (int i = 0; i < GLYPH_WIDTH; i++) {
 			uint32_t glyph_pixel = glyphs[ch][i + j * GLYPH_WIDTH];
+			uint32_t pixel;
 			if (glyph_pixel == 0xff)
-				dst_pointer[dst_x + i +
-					    (dst_y + j) * pitch / 4] =
-				    front_color;
+				pixel = front_color;
 			else if (glyph_pixel == 0)
-				dst_pointer[dst_x + i +
-					    (dst_y + j) * pitch / 4] =
-				    back_color;
+				pixel = back_color;
 			else {
 				uint32_t f1 = front_color & 0xff00ff;
 				uint32_t b1 = back_color & 0xff00ff;
@@ -64,10 +68,13 @@ void font_render(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
 				uint32_t part2 =
 				    (b2 +
 				     ((f2 - b2) * glyph_pixel >> 8)) & 0xff00;
-				dst_pointer[dst_x + i +
-					    (dst_y + j) * pitch / 4] =
-				    part1 | part2;
+				pixel = part1 | part2;
 			}
+			for(int sx = 0; sx < font_scaling; sx++)
+				for(int sy = 0; sy < font_scaling; sy++)
+					dst_pointer[dst_x + font_scaling * i +
+						    sx + (dst_y + font_scaling *
+						    j + sy) * pitch / 4] = pixel;
 		}
 }
 
