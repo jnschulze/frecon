@@ -40,7 +40,7 @@ void font_fillchar(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
 }
 
 void font_render(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
-		 int32_t pitch, uint8_t ch, uint32_t front_color,
+		 int32_t pitch, uint32_t ch, uint32_t front_color,
 		 uint32_t back_color)
 {
 	int dst_x = dst_char_x * GLYPH_WIDTH * font_scaling;

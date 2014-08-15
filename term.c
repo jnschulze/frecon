@@ -137,6 +137,9 @@ static const char *sev2str(unsigned int sev)
 	return sev2str_table[sev];
 }
 
+#ifdef __clang__
+__attribute__((__format__ (__printf__, 7, 0)))
+#endif
 static void log_tsm(void *data, const char *file, int line, const char *fn,
 		    const char *subs, unsigned int sev, const char *format,
 		    va_list args)
