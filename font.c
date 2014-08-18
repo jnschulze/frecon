@@ -21,13 +21,13 @@ void font_init(int scaling)
 	font_scaling = scaling;
 }
 
-void font_get_size(uint32_t * char_width, uint32_t * char_height)
+void font_get_size(uint32_t *char_width, uint32_t *char_height)
 {
 	*char_width = GLYPH_WIDTH * font_scaling;
 	*char_height = GLYPH_HEIGHT * font_scaling;
 }
 
-void font_fillchar(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
+void font_fillchar(uint32_t *dst_pointer, int dst_char_x, int dst_char_y,
 		   int32_t pitch, uint32_t front_color, uint32_t back_color)
 {
 	int dst_x = dst_char_x * GLYPH_WIDTH * font_scaling;
@@ -39,7 +39,7 @@ void font_fillchar(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
 			    back_color;
 }
 
-void font_render(uint32_t * dst_pointer, int dst_char_x, int dst_char_y,
+void font_render(uint32_t *dst_pointer, int dst_char_x, int dst_char_y,
 		 int32_t pitch, uint32_t ch, uint32_t front_color,
 		 uint32_t back_color)
 {

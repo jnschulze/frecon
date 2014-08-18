@@ -23,7 +23,7 @@
 
 struct shl_pty;
 
-typedef void (*shl_pty_input_cb) (struct shl_pty * pty, char *u8,
+typedef void (*shl_pty_input_cb) (struct shl_pty *pty, char *u8,
 				  size_t len, void *data);
 
 pid_t shl_pty_open(struct shl_pty **out, shl_pty_input_cb cb, void *data,

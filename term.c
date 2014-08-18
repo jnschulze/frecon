@@ -50,7 +50,7 @@ static void __attribute__ ((noreturn)) term_run_child()
 }
 
 static int term_draw_cell(struct tsm_screen *screen, uint32_t id,
-			  const uint32_t * ch, size_t len,
+			  const uint32_t *ch, size_t len,
 			  unsigned int cwidth, unsigned int posx,
 			  unsigned int posy,
 			  const struct tsm_screen_attr *attr,
@@ -187,7 +187,7 @@ static int term_special_key(struct input_key_event *ev)
 }
 
 static void term_get_keysym_and_unicode(struct input_key_event *event,
-					uint32_t * keysym, uint32_t * unicode)
+					uint32_t *keysym, uint32_t *unicode)
 {
 	struct {
 		uint32_t code;

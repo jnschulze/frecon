@@ -36,8 +36,8 @@ static int kms_open()
 }
 
 static drmModeCrtc *find_crtc_for_connector(int fd,
-					    drmModeRes * resources,
-					    drmModeConnector * connector)
+					    drmModeRes *resources,
+					    drmModeConnector *connector)
 {
 	int i;
 	unsigned encoder_crtc_id = 0;
@@ -75,8 +75,8 @@ static drmModeCrtc *find_crtc_for_connector(int fd,
 }
 
 static bool is_connector_used(int fd,
-			      drmModeRes * resources,
-			      drmModeConnector * connector)
+			      drmModeRes *resources,
+			      drmModeConnector *connector)
 {
 	bool result = false;
 	drmModeCrtc *crtc = find_crtc_for_connector(fd, resources, connector);
@@ -90,7 +90,7 @@ static bool is_connector_used(int fd,
 }
 
 static drmModeConnector *find_used_connector_by_type(int fd,
-						     drmModeRes * resources,
+						     drmModeRes *resources,
 						     unsigned type)
 {
 	int i;
@@ -110,7 +110,7 @@ static drmModeConnector *find_used_connector_by_type(int fd,
 }
 
 static drmModeConnector *find_first_used_connector(int fd,
-						   drmModeRes * resources)
+						   drmModeRes *resources)
 {
 	int i;
 	for (i = 0; i < resources->count_connectors; i++) {
@@ -127,7 +127,7 @@ static drmModeConnector *find_first_used_connector(int fd,
 	return NULL;
 }
 
-static drmModeConnector *find_main_monitor(int fd, drmModeRes * resources)
+static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources)
 {
 	unsigned i = 0;
 	/*
@@ -163,8 +163,8 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes * resources)
 }
 
 static void disable_connector(int fd,
-			      drmModeRes * resources,
-			      drmModeConnector * connector)
+			      drmModeRes *resources,
+			      drmModeConnector *connector)
 {
 	drmModeCrtc *crtc = find_crtc_for_connector(fd, resources, connector);
 
@@ -179,8 +179,8 @@ static void disable_connector(int fd,
 }
 
 static void disable_non_main_connectors(int fd,
-					drmModeRes * resources,
-					drmModeConnector * main_connector)
+					drmModeRes *resources,
+					drmModeConnector *main_connector)
 {
 	int i;
 
@@ -195,7 +195,7 @@ static void disable_non_main_connectors(int fd,
 	}
 }
 
-static int video_buffer_create(drmModeCrtc * crtc, drmModeConnector * connector,
+static int video_buffer_create(drmModeCrtc *crtc, drmModeConnector *connector,
 			       int *pitch)
 {
 	struct drm_mode_create_dumb create_dumb;
@@ -253,7 +253,7 @@ destroy_buffer:
 	return ret;
 }
 
-int video_init(int32_t * width, int32_t * height, int32_t * pitch, int32_t * scaling)
+int video_init(int32_t *width, int32_t *height, int32_t *pitch, int32_t *scaling)
 {
 	fd = kms_open();
 

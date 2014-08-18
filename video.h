@@ -7,7 +7,7 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-int video_init(int32_t * width, int32_t * height, int32_t * pitch, int * scaling);
+int video_init(int32_t *width, int32_t *height, int32_t *pitch, int *scaling);
 void video_close();
 void *video_lock();
 void video_unlock();

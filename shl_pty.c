@@ -490,7 +490,7 @@ void shl_pty_close(struct shl_pty *pty)
 	pty->fd = -1;
 }
 
-bool shl_pty_is_open(struct shl_pty * pty)
+bool shl_pty_is_open(struct shl_pty *pty)
 {
 	return pty->fd >= 0;
 }
@@ -500,7 +500,7 @@ int shl_pty_get_fd(struct shl_pty *pty)
 	return pty->fd;
 }
 
-pid_t shl_pty_get_child(struct shl_pty * pty)
+pid_t shl_pty_get_child(struct shl_pty *pty)
 {
 	return pty->child;
 }
