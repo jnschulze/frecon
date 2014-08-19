@@ -8,6 +8,7 @@
 #include <libtsm.h>
 #include <paths.h>
 #include <stdio.h>
+#include <sys/select.h>
 
 #include "font.h"
 #include "input.h"
@@ -227,40 +228,35 @@ static void term_get_keysym_and_unicode(struct input_key_event *event,
 
 int term_run()
 {
-	int input_fd = input_get_fd();
 	int pty_fd = term.pty_bridge;
 	fd_set read_set, exception_set;
 
 	while (1) {
 		FD_ZERO(&read_set);
-		FD_SET(input_fd, &read_set);
-		FD_SET(pty_fd, &read_set);
 		FD_ZERO(&exception_set);
-		FD_SET(input_fd, &exception_set);
+		FD_SET(pty_fd, &read_set);
 		FD_SET(pty_fd, &exception_set);
+		int maxfd = input_setfds(&read_set, &exception_set);
 
-		int maxfd = MAX(input_fd, pty_fd) + 1;
+		maxfd = MAX(maxfd, pty_fd) + 1;
 
 		select(maxfd, &read_set, NULL, &exception_set, NULL);
 
-		if (FD_ISSET(input_fd, &exception_set)
-		    || FD_ISSET(pty_fd, &exception_set))
+		if (FD_ISSET(pty_fd, &exception_set))
 			return -1;
 
-		if (FD_ISSET(input_fd, &read_set)) {
-			struct input_key_event *event;
-			event = input_get_event();
-			if (event) {
-				if (!term_special_key(event) && event->value) {
-					uint32_t keysym, unicode;
-					term_get_keysym_and_unicode(event,
-								    &keysym,
-								    &unicode);
-					term_key_event(keysym, unicode);
-				}
-
-				input_put_event(event);
+		struct input_key_event *event;
+		event = input_get_event(&read_set, &exception_set);
+		if (event) {
+			if (!term_special_key(event) && event->value) {
+				uint32_t keysym, unicode;
+				term_get_keysym_and_unicode(event,
+							    &keysym,
+							    &unicode);
+				term_key_event(keysym, unicode);
 			}
+
+			input_put_event(event);
 		}
 
 		if (FD_ISSET(pty_fd, &read_set)) {
