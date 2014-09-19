@@ -7,11 +7,21 @@
 #ifndef TERM_H
 #define TERM_H
 
+#include "video.h"
 #include "input.h"
 
-int term_init(int32_t width, int32_t height, int32_t pitch, int32_t scaling);
-void term_close();
-void term_redraw();
-int term_run();
+typedef struct _terminal_t {
+  video_t  *video;
+  dbus_t   *dbus;
+  struct term *term;
+  bool active;
+} terminal_t;
+
+terminal_t *term_init(video_t *video);
+void term_close(terminal_t* terminal);
+void term_redraw(terminal_t* terminal);
+void term_set_dbus(terminal_t* terminal, dbus_t* dbus);
+int term_run(terminal_t* terminal);
+void term_close(terminal_t* terminal);
 
 #endif

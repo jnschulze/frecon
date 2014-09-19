@@ -4,7 +4,7 @@
 
 include common.mk
 
-PC_DEPS = libdrm libtsm libudev dbus-1
+PC_DEPS = libdrm libtsm libudev dbus-1 libpng
 PC_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PC_DEPS))
 PC_LIBS := $(shell $(PKG_CONFIG) --libs $(PC_DEPS))
 

@@ -8,6 +8,7 @@
 #define INPUT_H
 
 #include <linux/input.h>
+#include "dbus.h"
 
 struct input_key_event {
 	uint16_t code;
@@ -16,8 +17,11 @@ struct input_key_event {
 
 int input_init();
 void input_close();
+void input_set_dbus(dbus_t* dbus);
 int input_setfds(fd_set *read_set, fd_set *exception_set);
 struct input_key_event *input_get_event(fd_set *read_fds, fd_set *exception_set);
 void input_put_event(struct input_key_event *event);
+void input_grab();
+void input_ungrab();
 
 #endif

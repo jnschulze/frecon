@@ -14,9 +14,10 @@
 #include <sys/select.h>
 #include <errno.h>
 #include <libudev.h>
-#include <dbus/dbus.h>
 #include "input.h"
-#include "mini_power_manager.h"
+#include "dbus_interface.h"
+#include "dbus.h"
+#include "util.h"
 
 struct input_dev {
 	int fd;
@@ -29,14 +30,14 @@ struct {
 	int udev_fd;
 	unsigned int ndevs;
 	struct input_dev *devs;
-	DBusConnection *dbus_conn;
+	dbus_t *dbus;
 } input = {
 	.udev = NULL,
 	.udev_monitor = NULL,
 	.udev_fd = -1,
 	.ndevs = 0,
 	.devs = NULL,
-	.dbus_conn = NULL
+	.dbus = NULL
 };
 
 static int input_add(const char *devname)
@@ -57,7 +58,7 @@ static int input_add(const char *devname)
 	if (!ret) {
 		ioctl(fd, EVIOCGRAB, (void *) 0);
 	} else {
-		fprintf(stderr, "Evdev device %s grabbed by another process\n",
+		LOG(ERROR, "Evdev device %s grabbed by another process",
 			devname);
 		ret = -EBUSY;
 		goto closefd;
@@ -105,15 +106,6 @@ static void input_remove(const char *devname)
 	}
 }
 
-static bool check_dbus_error(DBusError * err, const char *msg)
-{
-	if (dbus_error_is_set(err)) {
-		fprintf(stderr, "%s name:%s message:%s\n", msg, err->name,
-			err->message);
-		return true;
-	}
-	return false;
-}
 
 int input_init()
 {
@@ -149,6 +141,11 @@ int input_init()
 	if (!isatty(fileno(stdout)))
 		setbuf(stdout, NULL);
 
+	if (input.ndevs == 0) {
+		LOG(ERROR, "No valid inputs for terminal");
+		exit(EXIT_SUCCESS);
+	}
+
 	return 0;
 }
 
@@ -169,14 +166,13 @@ void input_close()
 	input.udev = NULL;
 	input.udev_fd = -1;
 
-	if (input.dbus_conn) {
-		/* FIXME - not sure what the right counterpart to
-		  dbus_bus_get() is, unref documentation is rather
-		  unclear. Not a big issue but it would be nice to
-		  clean up properly here */
-		/* dbus_connection_unref(input.dbus_conn); */
-		input.dbus_conn = NULL;
-	}
+	dbus_destroy(input.dbus);
+
+}
+
+void input_set_dbus(dbus_t* dbus)
+{
+	input.dbus = dbus;
 }
 
 int input_setfds(fd_set * read_set, fd_set * exception_set)
@@ -199,41 +195,19 @@ int input_setfds(fd_set * read_set, fd_set * exception_set)
 
 static void report_user_activity(void)
 {
-	DBusError err;
-	dbus_error_init(&err);
+	int activity_type = USER_ACTIVITY_OTHER;
 
-	if (!input.dbus_conn) {
-		input.dbus_conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
-		if (check_dbus_error(&err, "Cannot get dbus connection"))
-			return;
-		dbus_connection_set_exit_on_disconnect(input.dbus_conn, FALSE);
-	}
+	dbus_method_call(input.dbus, kPowerManagerServiceName,
+			kPowerManagerServicePath,
+			kPowerManagerInterface,
+			kHandleUserActivityMethod,
+			&activity_type);
 
-	if (!dbus_bus_name_has_owner(input.dbus_conn, kPowerManagerServiceName, &err)) {
-		fprintf(stderr, "Power_manager not available on dbus!\n");
-		return;
-	}
-
-	DBusMessage *msg = NULL;
-	unsigned int activity_type = USER_ACTIVITY_OTHER;
-
-	msg = dbus_message_new_method_call(kPowerManagerServiceName,
+	(void)dbus_message_new_method_call(kPowerManagerServiceName,
 					   kPowerManagerServicePath,
 					   kPowerManagerInterface,
 					   kHandleUserActivityMethod);
-	if (!msg)
-		return;
-	dbus_message_set_no_reply(msg, TRUE);
-	if (!dbus_message_append_args(msg,
-				      DBUS_TYPE_UINT32, &activity_type,
-				      DBUS_TYPE_INVALID)) {
-		dbus_message_unref(msg);
-		return;
-	}
-	if (!dbus_connection_send(input.dbus_conn, msg, NULL)) {
-	}
-	dbus_connection_flush(input.dbus_conn);
-	dbus_message_unref(msg);
+
 }
 
 struct input_key_event *input_get_event(fd_set * read_set,
@@ -245,7 +219,7 @@ struct input_key_event *input_get_event(fd_set * read_set,
 
 	if (FD_ISSET(input.udev_fd, exception_set)) {
 		/* udev died on us? */
-		fprintf(stderr, "Exception on udev fd\n");
+		LOG(ERROR, "Exception on udev fd");
 	}
 
 	if (FD_ISSET(input.udev_fd, read_set)
@@ -271,7 +245,7 @@ struct input_key_event *input_get_event(fd_set * read_set,
 			ret =
 			    read(input.devs[u].fd, &ev, sizeof (struct input_event));
 			if (ret < (int) sizeof (struct input_event)) {
-				printf("expected %d bytes, got %d\n",
+				LOG(ERROR, "expected %d bytes, got %d",
 				       (int) sizeof (struct input_event), ret);
 				return NULL;
 			}
@@ -293,4 +267,20 @@ struct input_key_event *input_get_event(fd_set * read_set,
 void input_put_event(struct input_key_event *event)
 {
 	free(event);
+}
+
+void input_grab()
+{
+	unsigned int i;
+	for (i = 0; i < input.ndevs; i++) {
+		(void)ioctl(input.devs[i].fd, EVIOCGRAB, (void *) 1);
+	}
+}
+
+void input_ungrab()
+{
+	unsigned int i;
+	for (i = 0; i < input.ndevs; i++) {
+		(void)ioctl(input.devs[i].fd, EVIOCGRAB, (void*) 0);
+	}
 }

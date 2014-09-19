@@ -8,21 +8,23 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/mman.h>
-#include <xf86drm.h>
-#include <xf86drmMode.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "util.h"
 #include "video.h"
+#include "dbus_interface.h"
+#include "dbus.h"
 
-static int fd;
-static uint8_t *map;
 
 static int kms_open()
 {
 	const char *module_list[] = { "cirrus", "exynos", "i915", "rockchip",
-				      "tegra" };
+							"tegra" };
 	int fd = -1;
 	unsigned i;
 
@@ -36,8 +38,8 @@ static int kms_open()
 }
 
 static drmModeCrtc *find_crtc_for_connector(int fd,
-					    drmModeRes *resources,
-					    drmModeConnector *connector)
+							drmModeRes *resources,
+							drmModeConnector *connector)
 {
 	int i;
 	unsigned encoder_crtc_id = 0;
@@ -45,7 +47,7 @@ static drmModeCrtc *find_crtc_for_connector(int fd,
 	/* Find the encoder */
 	for (i = 0; i < resources->count_encoders; i++) {
 		drmModeEncoder *encoder =
-		    drmModeGetEncoder(fd, resources->encoders[i]);
+				drmModeGetEncoder(fd, resources->encoders[i]);
 
 		if (encoder) {
 			if (encoder->encoder_id == connector->encoder_id) {
@@ -75,8 +77,8 @@ static drmModeCrtc *find_crtc_for_connector(int fd,
 }
 
 static bool is_connector_used(int fd,
-			      drmModeRes *resources,
-			      drmModeConnector *connector)
+						drmModeRes *resources,
+						drmModeConnector *connector)
 {
 	bool result = false;
 	drmModeCrtc *crtc = find_crtc_for_connector(fd, resources, connector);
@@ -90,8 +92,8 @@ static bool is_connector_used(int fd,
 }
 
 static drmModeConnector *find_used_connector_by_type(int fd,
-						     drmModeRes *resources,
-						     unsigned type)
+								 drmModeRes *resources,
+								 unsigned type)
 {
 	int i;
 	for (i = 0; i < resources->count_connectors; i++) {
@@ -100,7 +102,7 @@ static drmModeConnector *find_used_connector_by_type(int fd,
 		connector = drmModeGetConnector(fd, resources->connectors[i]);
 		if (connector) {
 			if ((connector->connector_type == type) &&
-			    (is_connector_used(fd, resources, connector)))
+					(is_connector_used(fd, resources, connector)))
 				return connector;
 
 			drmModeFreeConnector(connector);
@@ -110,7 +112,7 @@ static drmModeConnector *find_used_connector_by_type(int fd,
 }
 
 static drmModeConnector *find_first_used_connector(int fd,
-						   drmModeRes *resources)
+							 drmModeRes *resources)
 {
 	int i;
 	for (i = 0; i < resources->count_connectors; i++) {
@@ -146,9 +148,8 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources)
 	drmModeConnector *main_monitor_connector = NULL;
 	do {
 		main_monitor_connector = find_used_connector_by_type(fd,
-								     resources,
-								     kConnectorPriority
-								     [i]);
+										 resources,
+										 kConnectorPriority[i]);
 		i++;
 	} while (!main_monitor_connector && i < ARRAY_SIZE(kConnectorPriority));
 
@@ -157,23 +158,23 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources)
 	 */
 	if (!main_monitor_connector)
 		main_monitor_connector =
-		    find_first_used_connector(fd, resources);
+				find_first_used_connector(fd, resources);
 
 	return main_monitor_connector;
 }
 
 static void disable_connector(int fd,
-			      drmModeRes *resources,
-			      drmModeConnector *connector)
+						drmModeRes *resources,
+						drmModeConnector *connector)
 {
 	drmModeCrtc *crtc = find_crtc_for_connector(fd, resources, connector);
 
 	if (crtc) {
-		drmModeSetCrtc(fd, crtc->crtc_id, 0,	// buffer_id
-			       0, 0,	// x,y
-			       NULL,	// connectors
-			       0,	// connector_count
-			       NULL);	// mode
+		drmModeSetCrtc(fd, crtc->crtc_id, 0, // buffer_id
+						 0, 0,  // x,y
+						 NULL,  // connectors
+						 0,     // connector_count
+						 NULL); // mode
 		drmModeFreeCrtc(crtc);
 	}
 }
@@ -195,8 +196,8 @@ static void disable_non_main_connectors(int fd,
 	}
 }
 
-static int video_buffer_create(drmModeCrtc *crtc, drmModeConnector *connector,
-			       int *pitch)
+static int video_buffer_create(video_t *video, drmModeCrtc *crtc, drmModeConnector *connector,
+						 int *pitch)
 {
 	struct drm_mode_create_dumb create_dumb;
 	int ret;
@@ -206,100 +207,101 @@ static int video_buffer_create(drmModeCrtc *crtc, drmModeConnector *connector,
 	create_dumb.width = crtc->mode.hdisplay;
 	create_dumb.height = crtc->mode.vdisplay;
 
-	ret = drmIoctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &create_dumb);
-	if (ret)
+	ret = drmIoctl(video->fd, DRM_IOCTL_MODE_CREATE_DUMB, &create_dumb);
+	if (ret) {
+		LOG(ERROR, "CREATE_DUMB failed");
 		return ret;
+	}
+
+	video->buffer_properties.size = create_dumb.size;
 
 	struct drm_mode_map_dumb map_dumb;
 	map_dumb.handle = create_dumb.handle;
-	ret = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb);
-	if (ret)
+	ret = drmIoctl(video->fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb);
+	if (ret) {
+		LOG(ERROR, "MAP_DUMB failed");
 		goto destroy_buffer;
+	}
 
-	map =
-	    mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-		 map_dumb.offset);
-	if (!map)
-		goto destroy_buffer;
+	video->lock.map_offset = map_dumb.offset;
 
 	uint32_t offset = 0;
-	uint32_t fb_id;
-	ret = drmModeAddFB2(fd, crtc->mode.hdisplay, crtc->mode.vdisplay,
-			    DRM_FORMAT_XRGB8888, &create_dumb.handle,
-			    &create_dumb.pitch, &offset, &fb_id, 0);
-	if (ret)
-		goto unmap_buffer;
+	ret = drmModeAddFB2(video->fd, crtc->mode.hdisplay, crtc->mode.vdisplay,
+					DRM_FORMAT_XRGB8888, &create_dumb.handle,
+					&create_dumb.pitch, &offset, &video->fb_id, 0);
+	if (ret) {
+		LOG(ERROR, "drmModeAddFB2 failed");
+		goto destroy_buffer;
+	}
 
 	*pitch = create_dumb.pitch;
 
-	ret = drmModeSetCrtc(fd, crtc->crtc_id, fb_id,	// buffer_id
-			     0, 0,	// x,y
-			     &connector->connector_id,	// connectors
-			     1,	// connector_count
-			     &crtc->mode);	// mode
-
 	return ret;
-
-unmap_buffer:
-	munmap(map, create_dumb.size);
 
 destroy_buffer:
 	;
 	struct drm_mode_destroy_dumb destroy_dumb;
 	destroy_dumb.handle = create_dumb.handle;
 
-	drmIoctl(fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
+	drmIoctl(video->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
 
 	return ret;
 }
 
-int video_init(int32_t *width, int32_t *height, int32_t *pitch, int32_t *scaling)
+video_t* video_init(int32_t *width, int32_t *height, int32_t *pitch, int32_t *scaling)
 {
-	fd = kms_open();
+	video_t *new_video = (video_t*)calloc(1, sizeof(video_t));
 
-	if (fd < 0) {
-		printf("Unable to open a KMS module\n");
-		return 1;
+	new_video->fd = -1;
+
+	new_video->fd = kms_open();
+
+	if (new_video->fd < 0) {
+		LOG(ERROR, "Unable to open a KMS module");
+		return NULL;
 	}
 
-	drmModeRes *resources = drmModeGetResources(fd);
-	if (!resources) {
-		printf("Unable to get mode resources\n");
+	if (drmSetMaster(new_video->fd) != 0) {
+		LOG(ERROR, "video_init unable to get master");
+	}
+
+	new_video->drm_resources = drmModeGetResources(new_video->fd);
+	if (!new_video->drm_resources) {
+		LOG(ERROR, "Unable to get mode resources");
 		goto fail;
 	}
 
-	drmModeConnector *main_monitor_connector =
-	    find_main_monitor(fd, resources);
+	new_video->main_monitor_connector = find_main_monitor(new_video->fd, new_video->drm_resources);
 
-	if (!main_monitor_connector) {
-		drmModeFreeResources(resources);
+	if (!new_video->main_monitor_connector) {
+		LOG(ERROR, "main_monitor_connector is nil");
 		goto fail;
 	}
 
-	disable_non_main_connectors(fd, resources, main_monitor_connector);
+	disable_non_main_connectors(new_video->fd,
+			new_video->drm_resources, new_video->main_monitor_connector);
 
-	drmModeCrtc *crtc =
-	    find_crtc_for_connector(fd, resources, main_monitor_connector);
-	if (!crtc) {
-		drmModeFreeResources(resources);
-		drmModeFreeConnector(main_monitor_connector);
+	new_video->crtc = find_crtc_for_connector(new_video->fd,
+			new_video->drm_resources, new_video->main_monitor_connector);
+
+	if (!new_video->crtc) {
+		LOG(ERROR, "unable to find a crtc");
 		goto fail;
 	}
 
-	if (video_buffer_create(crtc, main_monitor_connector, pitch)) {
-		drmModeFreeResources(resources);
-		drmModeFreeConnector(main_monitor_connector);
-		drmModeFreeCrtc(crtc);
+	if (video_buffer_create(new_video, new_video->crtc,
+				new_video->main_monitor_connector, pitch)) {
+		LOG(ERROR, "video_buffer_create failed");
 		goto fail;
 	}
 
-	*width = crtc->mode.hdisplay;
-	*height = crtc->mode.vdisplay;
+	*width = new_video->crtc->mode.hdisplay;
+	*height = new_video->crtc->mode.vdisplay;
 
-	if (!main_monitor_connector->mmWidth)
+	if (!new_video->main_monitor_connector->mmWidth)
 		*scaling = 1;
 	else {
-		int dots_per_cm = *width * 10 / main_monitor_connector->mmWidth;
+		int dots_per_cm = *width * 10 / new_video->main_monitor_connector->mmWidth;
 		if (dots_per_cm > 133)
 			*scaling = 4;
 		else if (dots_per_cm > 100)
@@ -310,31 +312,169 @@ int video_init(int32_t *width, int32_t *height, int32_t *pitch, int32_t *scaling
 			*scaling = 1;
 	}
 
-	drmModeFreeResources(resources);
-	drmModeFreeConnector(main_monitor_connector);
-	drmModeFreeCrtc(crtc);
+	new_video->buffer_properties.width = *width;
+	new_video->buffer_properties.height = *height;
+	new_video->buffer_properties.pitch = *pitch;
+	new_video->buffer_properties.scaling = *scaling;
 
-	return 0;
+	if (drmDropMaster(new_video->fd) != 0) {
+		LOG(WARNING, "video_init unable to drop master");
+	}
+
+	return new_video;
 
 fail:
-	drmClose(fd);
-	return 1;
+	if (new_video->drm_resources)
+		drmModeFreeResources(new_video->drm_resources);
+
+	if (new_video->main_monitor_connector)
+		drmModeFreeConnector(new_video->main_monitor_connector);
+
+	if (new_video->crtc)
+		drmModeFreeCrtc(new_video->crtc);
+
+	if (drmDropMaster(new_video->fd) != 0) {
+		LOG(WARNING, "video_init unable to drop master");
+	}
+
+	if (new_video->fd >= 0)
+		drmClose(new_video->fd);
+
+	return NULL;
 }
 
-void video_close()
+
+int32_t video_setmode(video_t* video)
 {
-	if (fd >= 0) {
-		drmClose(fd);
-		fd = -1;
+	int32_t ret;
+
+	drmSetMaster(video->fd);
+	ret = drmModeSetCrtc(video->fd, video->crtc->crtc_id,
+					 video->fb_id,
+					 0, 0,  // x,y
+					 &video->main_monitor_connector->connector_id,
+					 1,  // connector_count
+					 &video->crtc->mode); // mode
+
+	drmDropMaster(video->fd);
+
+	return ret;
+}
+
+void video_close(video_t *video)
+{
+	if (video->fd >= 0) {
+		drmClose(video->fd);
+		video->fd = -1;
 	}
 }
 
-void *video_lock()
+
+uint32_t* video_lock(video_t *video)
 {
-	return map;
+	if (video->lock.count == 0) {
+		video->lock.map =
+			mmap(0, video->buffer_properties.size, PROT_READ | PROT_WRITE,
+					MAP_SHARED, video->fd, video->lock.map_offset);
+		if (!video->lock.map) {
+			LOG(ERROR, "mmap failed");
+			return NULL;
+		}
+  }
+  return video->lock.map;
 }
 
-void video_unlock()
+void video_unlock(video_t *video)
 {
 	/* XXX Cache flush maybe? */
+	if (video->lock.count > 0) {
+		video->lock.count--;
+	}
+
+	if (video->lock.count == 0) {
+		munmap(video->lock.map, video->buffer_properties.size);
+	}
 }
+
+bool video_load_gamma_ramp(video_t *video, const char* filename)
+{
+	int i;
+	int r = 0;
+	unsigned char red[kGammaSize];
+	unsigned char green[kGammaSize];
+	unsigned char blue[kGammaSize];
+	gamma_ramp_t *ramp;
+
+	FILE* f = fopen(filename, "rb");
+	if (f == NULL)
+		return false;
+
+	ramp = &video->gamma_ramp;
+
+	r += fread(red, sizeof(red), 1, f);
+	r += fread(green, sizeof(green), 1, f);
+	r += fread(blue, sizeof(blue), 1, f);
+	fclose(f);
+
+	if (r != 3)
+		return false;
+
+	for (i = 0; i < kGammaSize; ++i) {
+		ramp->red[i]   = (uint16_t)red[i] * 257;
+		ramp->green[i] = (uint16_t)green[i] * 257;
+		ramp->blue[i]  = (uint16_t)blue[i] * 257;
+	}
+
+	return true;
+}
+
+bool video_set_gamma(video_t* video, const char *filename)
+{
+	bool status;
+	drmModeCrtcPtr mode;
+	int drm_status;
+
+	status = video_load_gamma_ramp(video, filename);
+	if (status == false) {
+		LOG(WARNING, "Unable to load gamma ramp");
+		return false;
+	}
+
+	mode = drmModeGetCrtc(video->fd, video->crtc->crtc_id);
+	drm_status = drmModeCrtcSetGamma(video->fd,
+			mode->crtc_id,
+			mode->gamma_size,
+			video->gamma_ramp.red,
+			video->gamma_ramp.green,
+			video->gamma_ramp.blue);
+
+	return drm_status == 0;
+}
+
+
+buffer_properties_t* video_get_buffer_properties(video_t *video)
+{
+	return &video->buffer_properties;
+}
+
+int32_t video_getwidth(video_t *video)
+{
+	return video->buffer_properties.width;
+}
+
+int32_t video_getheight(video_t *video)
+{
+	return video->buffer_properties.height;
+}
+
+
+int32_t video_getpitch(video_t *video)
+{
+	return video->buffer_properties.pitch;
+}
+
+int32_t video_getscaling(video_t *video)
+{
+	return video->buffer_properties.scaling;
+}
+
