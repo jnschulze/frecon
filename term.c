@@ -152,6 +152,29 @@ static void log_tsm(void *data, const char *file, int line, const char *fn,
 
 static int term_special_key(struct input_key_event *ev)
 {
+	unsigned int i;
+
+	uint32_t ignore_keys[] = {
+		BTN_TOUCH, // touchpad events
+		BTN_TOOL_FINGER,
+		BTN_TOOL_DOUBLETAP,
+		BTN_TOOL_TRIPLETAP,
+		BTN_TOOL_QUADTAP,
+		BTN_TOOL_QUINTTAP,
+		BTN_LEFT, // mouse buttons
+		BTN_RIGHT,
+		BTN_MIDDLE,
+		BTN_SIDE,
+		BTN_EXTRA,
+		BTN_FORWARD,
+		BTN_BACK,
+		BTN_TASK
+	};
+
+	for (i = 0; i < ARRAY_SIZE(ignore_keys); i++)
+		if (ev->code == ignore_keys[i])
+			return 1;
+
 	switch (ev->code) {
 	case KEY_LEFTSHIFT:
 	case KEY_RIGHTSHIFT:
