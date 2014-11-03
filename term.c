@@ -219,11 +219,16 @@ static int term_special_key(terminal_t *terminal, struct input_key_event *ev)
 	}
 
 	if (terminal->term->alt_state && terminal->term->control_state && ev->value) {
-		int console_id;
 		switch (ev->code) {
 			case KEY_F1:
 				input_ungrab();
 				terminal->active = false;
+        (void)dbus_method_call0(terminal->dbus,
+          kLibCrosServiceName,
+          kLibCrosServicePath,
+          kLibCrosServiceInterface,
+          kTakeDisplayOwnership);
+        break;
 			case KEY_F2:
 			case KEY_F3:
 			case KEY_F4:
@@ -233,24 +238,22 @@ static int term_special_key(terminal_t *terminal, struct input_key_event *ev)
 			case KEY_F8:
 			case KEY_F9:
 			case KEY_F10:
-				console_id = ev->code - KEY_F1 + 1;
-
-				(void)dbus_method_call(terminal->dbus,
-						kLibCrosServiceName,
-						kLibCrosServicePath,
-						kLibCrosServiceInterface,
-						kActivateConsoleMethod,
-						&console_id);
-
-				if (ev->code == KEY_F2) {
-					terminal->active = true;
-					input_grab();
-					video_setmode(terminal->video);
-					term_redraw(terminal);
-				}
-				return 1;
-
+        (void)dbus_method_call0(terminal->dbus,
+          kLibCrosServiceName,
+          kLibCrosServicePath,
+          kLibCrosServiceInterface,
+          kReleaseDisplayOwnership);
+          break;
 		}
+
+    if (ev->code == KEY_F2) {
+      terminal->active = true;
+      input_grab();
+      video_setmode(terminal->video);
+      term_redraw(terminal);
+    }
+    return 1;
+
 	}
 
 

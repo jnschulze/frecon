@@ -41,6 +41,7 @@ static const char kLibCrosServiceName[] = "org.chromium.LibCrosService";
 static const char kLibCrosServicePath[] = "/org/chromium/LibCrosService";
 static const char kLibCrosServiceInterface[] =
   "org.chromium.LibCrosServiceInterface";
-static const char kActivateConsoleMethod[] = "ActivateConsole";
+static const char kTakeDisplayOwnership[] = "TakeDisplayOwnership";
+static const char kReleaseDisplayOwnership[] = "ReleaseDisplayOwnership";
 
 #endif // FRECON_DBUS_API_H_

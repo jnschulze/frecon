@@ -43,7 +43,31 @@ dbus_t* dbus_init()
 }
 
 
-bool dbus_method_call(dbus_t* dbus, const char* service_name,
+bool dbus_method_call0(dbus_t* dbus, const char* service_name,
+		const char* service_path, const char* service_interface,
+		const char* method)
+{
+	DBusMessage *msg = NULL;
+
+	msg = dbus_message_new_method_call(service_name,
+			service_path, service_interface, method);
+
+	if (!msg)
+		return false;
+
+	if (!dbus_connection_send_with_reply_and_block(dbus->conn,
+				msg, -1, NULL)) {
+		dbus_message_unref(msg);
+		return false;
+	}
+
+	dbus_connection_flush(dbus->conn);
+	dbus_message_unref(msg);
+
+	return true;
+}
+
+bool dbus_method_call1(dbus_t* dbus, const char* service_name,
 		const char* service_path, const char* service_interface,
 		const char* method, int* param)
 {

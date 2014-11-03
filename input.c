@@ -197,7 +197,7 @@ static void report_user_activity(void)
 {
 	int activity_type = USER_ACTIVITY_OTHER;
 
-	dbus_method_call(input.dbus, kPowerManagerServiceName,
+	dbus_method_call1(input.dbus, kPowerManagerServiceName,
 			kPowerManagerServicePath,
 			kPowerManagerInterface,
 			kHandleUserActivityMethod,
