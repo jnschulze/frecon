@@ -221,7 +221,7 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		}
 	}
 
-  // Let chrome know it's ok to take drmMaster
+	/* Let chrome know it's ok to take drmMaster */
 	(void)dbus_method_call0(splash->dbus,
 		kLibCrosServiceName,
 		kLibCrosServicePath,
