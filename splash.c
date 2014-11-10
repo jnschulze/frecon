@@ -22,6 +22,7 @@
 
 #define  MAX_SPLASH_IMAGES      (30)
 #define  FILENAME_LENGTH        (100)
+#define  MAX_SPLASH_WAITTIME    (5000)
 
 typedef union {
 	uint32_t  *as_pixels;
@@ -137,6 +138,7 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 	struct timespec sleep_spec;
 	int fd;
 	int num_written;
+	int wfm_status;
 
 	status = 0;
 
@@ -195,8 +197,14 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 				kLoginPromptVisiibleRule,
 				frecon_dbus_path_message_func, splash);
 
-		if (db_status)
-			dbus_wait_for_messages(*dbus);
+		if (db_status) {
+			wfm_status = dbus_wait_for_messages(*dbus, MAX_SPLASH_WAITTIME);
+			switch (wfm_status) {
+				case DBUS_STATUS_TIMEOUT:
+					LOG(WARNING, "timed out waiting for messages\n");
+					break;
+			}
+		}
 
 
 		/*

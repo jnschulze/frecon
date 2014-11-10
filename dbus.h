@@ -12,6 +12,9 @@
 #include <memory.h>
 #include <stdio.h>
 
+#define DBUS_STATUS_NOERROR     (0)
+#define DBUS_STATUS_TIMEOUT     (-1)
+
 typedef struct _dbus_t dbus_t;
 
 typedef void (*dbus_message_handler_t)(dbus_t*, void*);
@@ -31,7 +34,7 @@ bool dbus_signal_match_handler(
     const char* rule,
     dbus_message_handler_t handler,
     void *user_data);
-void dbus_wait_for_messages(dbus_t *dbus);
+int dbus_wait_for_messages(dbus_t *dbus, int64_t timeout_ms);
 void dbus_stop_wait(dbus_t* dbus);
 void dbus_destroy(dbus_t* dbus);
 

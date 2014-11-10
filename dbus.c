@@ -149,12 +149,24 @@ bool dbus_signal_match_handler(
 }
 
 
-void dbus_wait_for_messages(dbus_t *dbus)
+int dbus_wait_for_messages(dbus_t *dbus, int64_t timeout_ms)
 {
+	int ret = DBUS_STATUS_NOERROR;
+	int64_t terminate_ms = -1;
+	if (timeout_ms > 0)
+		terminate_ms = get_monotonic_time_ms() + timeout_ms;
+
 	while (dbus_connection_read_write_dispatch(dbus->conn, -1)) {
+		if ((terminate_ms > 0) && (get_monotonic_time_ms() > terminate_ms)) {
+			dbus->terminate = true;
+			ret = DBUS_STATUS_TIMEOUT;
+		}
+
 		if (dbus->terminate)
 			break;
 	}
+
+	return ret;
 }
 
 
