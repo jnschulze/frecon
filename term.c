@@ -9,10 +9,11 @@
 #include <paths.h>
 #include <stdio.h>
 #include <sys/select.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "font.h"
 #include "input.h"
-#include "keysym.h"
 #include "shl_pty.h"
 #include "term.h"
 #include "util.h"
@@ -29,16 +30,12 @@ struct term {
 	int char_x, char_y;
 	int pitch;
 	uint32_t *dst_image;
-	int shift_state;
-	int control_state;
-	int alt_state;
 };
-
 
 static void __attribute__ ((noreturn)) term_run_child()
 {
 	char **argv = (char *[]) {
-		getenv("SHELL") ? : _PATH_BSHELL,
+		getenv("SHELL") ? : "/bin/bash",
 		"-il",
 		NULL
 	};
@@ -157,194 +154,7 @@ static void log_tsm(void *data, const char *file, int line, const char *fn,
 	fprintf(stderr, "\n");
 }
 
-static int term_special_key(terminal_t *terminal, struct input_key_event *ev)
-{
-	unsigned int i;
-
-	uint32_t ignore_keys[] = {
-		BTN_TOUCH, // touchpad events
-		BTN_TOOL_FINGER,
-		BTN_TOOL_DOUBLETAP,
-		BTN_TOOL_TRIPLETAP,
-		BTN_TOOL_QUADTAP,
-		BTN_TOOL_QUINTTAP,
-		BTN_LEFT, // mouse buttons
-		BTN_RIGHT,
-		BTN_MIDDLE,
-		BTN_SIDE,
-		BTN_EXTRA,
-		BTN_FORWARD,
-		BTN_BACK,
-		BTN_TASK
-	};
-
-	for (i = 0; i < ARRAY_SIZE(ignore_keys); i++)
-		if (ev->code == ignore_keys[i])
-			return 1;
-
-	switch (ev->code) {
-	case KEY_LEFTSHIFT:
-	case KEY_RIGHTSHIFT:
-		terminal->term->shift_state = ! !ev->value;
-		return 1;
-	case KEY_LEFTCTRL:
-	case KEY_RIGHTCTRL:
-		terminal->term->control_state = ! !ev->value;
-		return 1;
-	case KEY_LEFTALT:
-	case KEY_RIGHTALT:
-		terminal->term->alt_state = ! !ev->value;
-		return 1;
-	}
-
-	if (terminal->term->shift_state && ev->value) {
-		switch (ev->code) {
-		case KEY_PAGEUP:
-			tsm_screen_sb_page_up(terminal->term->screen, 1);
-			term_redraw(terminal);
-			return 1;
-		case KEY_PAGEDOWN:
-			tsm_screen_sb_page_down(terminal->term->screen, 1);
-			term_redraw(terminal);
-			return 1;
-		case KEY_UP:
-			tsm_screen_sb_up(terminal->term->screen, 1);
-			term_redraw(terminal);
-			return 1;
-		case KEY_DOWN:
-			tsm_screen_sb_down(terminal->term->screen, 1);
-			term_redraw(terminal);
-			return 1;
-		}
-	}
-
-	if (terminal->term->alt_state && terminal->term->control_state && ev->value) {
-		switch (ev->code) {
-			case KEY_F1:
-				input_ungrab();
-				terminal->active = false;
-				(void)dbus_method_call0(terminal->dbus,
-					kLibCrosServiceName,
-					kLibCrosServicePath,
-					kLibCrosServiceInterface,
-					kTakeDisplayOwnership);
-				break;
-			case KEY_F2:
-			case KEY_F3:
-			case KEY_F4:
-			case KEY_F5:
-			case KEY_F6:
-			case KEY_F7:
-			case KEY_F8:
-			case KEY_F9:
-			case KEY_F10:
-				(void)dbus_method_call0(terminal->dbus,
-					kLibCrosServiceName,
-					kLibCrosServicePath,
-					kLibCrosServiceInterface,
-					kReleaseDisplayOwnership);
-				break;
-		}
-
-		if (ev->code == KEY_F2) {
-			terminal->active = true;
-			input_grab();
-			video_setmode(terminal->video);
-			term_redraw(terminal);
-		}
-		return 1;
-
-	}
-
-
-	return 0;
-}
-
-static void term_get_keysym_and_unicode(terminal_t* terminal,
-		struct input_key_event *event,
-		uint32_t *keysym, uint32_t *unicode)
-{
-	struct {
-		uint32_t code;
-		uint32_t keysym;
-	} non_ascii_keys[] = {
-		{ KEY_ESC, KEYSYM_ESC},
-		{ KEY_HOME, KEYSYM_HOME},
-		{ KEY_LEFT, KEYSYM_LEFT},
-		{ KEY_UP, KEYSYM_UP},
-		{ KEY_RIGHT, KEYSYM_RIGHT},
-		{ KEY_DOWN, KEYSYM_DOWN},
-		{ KEY_PAGEUP, KEYSYM_PAGEUP},
-		{ KEY_PAGEDOWN, KEYSYM_PAGEDOWN},
-		{ KEY_END, KEYSYM_END},
-		{ KEY_INSERT, KEYSYM_INSERT},
-		{ KEY_DELETE, KEYSYM_DELETE},
-	};
-
-	for (unsigned i = 0; i < ARRAY_SIZE(non_ascii_keys); i++) {
-		if (non_ascii_keys[i].code == event->code) {
-			*keysym = non_ascii_keys[i].keysym;
-			*unicode = -1;
-			return;
-		}
-	}
-
-	if (event->code >= ARRAY_SIZE(keysym_table) / 2) {
-		*keysym = '?';
-	} else {
-		*keysym = keysym_table[event->code * 2 + terminal->term->shift_state];
-		if ((terminal->term->control_state) && isascii(*keysym))
-			*keysym = tolower(*keysym) - 'a' + 1;
-	}
-
-	*unicode = *keysym;
-}
-
-int term_run(terminal_t* terminal)
-{
-	int pty_fd = terminal->term->pty_bridge;
-	fd_set read_set, exception_set;
-
-	video_setmode(terminal->video);
-
-	while (1) {
-		FD_ZERO(&read_set);
-		FD_ZERO(&exception_set);
-		FD_SET(pty_fd, &read_set);
-		FD_SET(pty_fd, &exception_set);
-		int maxfd = input_setfds(&read_set, &exception_set);
-
-		maxfd = MAX(maxfd, pty_fd) + 1;
-
-		select(maxfd, &read_set, NULL, &exception_set, NULL);
-
-		if (FD_ISSET(pty_fd, &exception_set))
-			return -1;
-
-		struct input_key_event *event;
-		event = input_get_event(&read_set, &exception_set);
-		if (event) {
-			if (!term_special_key(terminal, event) && event->value) {
-				uint32_t keysym, unicode;
-				if (terminal->active) {
-					term_get_keysym_and_unicode(terminal, event,
-									&keysym,
-									&unicode);
-					term_key_event(terminal, keysym, unicode);
-				}
-			}
-
-			input_put_event(event);
-		}
-
-		if (FD_ISSET(pty_fd, &read_set)) {
-			shl_pty_bridge_dispatch(terminal->term->pty_bridge, 0);
-		}
-	}
-	return 0;
-}
-
-terminal_t* term_init(video_t* video)
+terminal_t* term_init()
 {
 	const int scrollback_size = 200;
 	uint32_t char_width, char_height;
@@ -352,15 +162,29 @@ terminal_t* term_init(video_t* video)
 	terminal_t *new_terminal;
 
 	new_terminal = (terminal_t*)calloc(1, sizeof(*new_terminal));
-	new_terminal->video = video;
-	new_terminal->term = (struct term*)calloc(1, sizeof(*new_terminal->term));
+	if (!new_terminal)
+		return NULL;
 
-	font_init(video_getscaling(video));
+	new_terminal->video = video_init();
+	if (!new_terminal->video) {
+		term_close(new_terminal);
+		return NULL;
+	}
+
+	new_terminal->term = (struct term*)calloc(1, sizeof(*new_terminal->term));
+	if (!new_terminal->term) {
+		term_close(new_terminal);
+		return NULL;
+	}
+
+	font_init(video_getscaling(new_terminal->video));
 	font_get_size(&char_width, &char_height);
 
-	new_terminal->term->char_x = video_getwidth(video) / char_width;
-	new_terminal->term->char_y = video_getheight(video) / char_height;
-	new_terminal->term->pitch = video_getpitch(video);
+	new_terminal->term->char_x =
+		video_getwidth(new_terminal->video) / char_width;
+	new_terminal->term->char_y =
+		video_getheight(new_terminal->video) / char_height;
+	new_terminal->term->pitch = video_getpitch(new_terminal->video);
 
 	status = tsm_screen_new(&new_terminal->term->screen,
 			log_tsm, new_terminal->term);
@@ -420,6 +244,9 @@ terminal_t* term_init(video_t* video)
 		term_close(new_terminal);
 		return NULL;
 	}
+	new_terminal->active = true;
+	video_setmode(new_terminal->video);
+	term_redraw(new_terminal);
 
 	return new_terminal;
 }
@@ -434,10 +261,98 @@ void term_close(terminal_t *term)
 	if (!term)
 		return;
 
+	if (term->video) {
+		video_close(term->video);
+		term->video = NULL;
+	}
+
 	if (term->term) {
 		free(term->term);
 		term->term = NULL;
 	}
 
 	free(term);
+}
+
+bool term_is_child_done(terminal_t* terminal)
+{
+	int status;
+	int ret;
+	ret = waitpid(terminal->term->pid, &status, WNOHANG);
+
+	return ret != 0;
+}
+
+void term_page_up(terminal_t* terminal)
+{
+	tsm_screen_sb_page_up(terminal->term->screen, 1);
+	term_redraw(terminal);
+}
+
+void term_page_down(terminal_t* terminal)
+{
+	tsm_screen_sb_page_down(terminal->term->screen, 1);
+	term_redraw(terminal);
+}
+
+void term_line_up(terminal_t* terminal)
+{
+	tsm_screen_sb_up(terminal->term->screen, 1);
+	term_redraw(terminal);
+}
+
+void term_line_down(terminal_t* terminal)
+{
+	tsm_screen_sb_down(terminal->term->screen, 1);
+	term_redraw(terminal);
+}
+
+bool term_is_valid(terminal_t* terminal)
+{
+	return ((terminal != NULL) && (terminal->term != NULL));
+}
+
+int term_fd(terminal_t* terminal)
+{
+	if (term_is_valid(terminal))
+		return terminal->term->pty_bridge;
+	else
+		return -1;
+}
+
+void term_dispatch_io(terminal_t* terminal, fd_set* read_set)
+{
+	if (term_is_valid(terminal))
+		if (FD_ISSET(terminal->term->pty_bridge, read_set))
+			shl_pty_bridge_dispatch(terminal->term->pty_bridge, 0);
+}
+
+bool term_exception(terminal_t* terminal, fd_set* exception_set)
+{
+	if (term_is_valid(terminal)) {
+		if (terminal->term->pty_bridge >= 0) {
+			return FD_ISSET(terminal->term->pty_bridge,
+					exception_set);
+		}
+	}
+
+	return false;
+}
+
+bool term_is_active(terminal_t* terminal)
+{
+	if (term_is_valid(terminal))
+		return terminal->active;
+
+	return false;
+}
+
+void term_add_fd(terminal_t* terminal, fd_set* read_set, fd_set* exception_set)
+{
+	if (term_is_valid(terminal)) {
+		if (terminal->term->pty_bridge >= 0) {
+			FD_SET(terminal->term->pty_bridge, read_set);
+			FD_SET(terminal->term->pty_bridge, exception_set);
+		}
+	}
 }

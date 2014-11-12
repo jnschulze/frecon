@@ -17,11 +17,24 @@ typedef struct _terminal_t {
   bool active;
 } terminal_t;
 
-terminal_t *term_init(video_t *video);
+terminal_t *term_init();
 void term_close(terminal_t* terminal);
 void term_redraw(terminal_t* terminal);
 void term_set_dbus(terminal_t* terminal, dbus_t* dbus);
-int term_run(terminal_t* terminal);
 void term_close(terminal_t* terminal);
+void term_key_event(terminal_t* terminal, uint32_t keysym, int32_t unicode);
+bool term_is_child_done(terminal_t* terminal);
+
+void term_page_up(terminal_t* terminal);
+void term_page_down(terminal_t* terminal);
+void term_line_up(terminal_t* terminal);
+void term_line_down(terminal_t* terminal);
+
+bool term_is_valid(terminal_t* terminal);
+int term_fd(terminal_t* terminal);
+void term_dispatch_io(terminal_t* terminal, fd_set* read_set);
+bool term_exception(terminal_t*, fd_set* exception_set);
+bool term_is_active(terminal_t*);
+void term_add_fd(terminal_t* terminal, fd_set* read_set, fd_set* exception_set);
 
 #endif

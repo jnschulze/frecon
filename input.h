@@ -9,6 +9,8 @@
 
 #include <linux/input.h>
 #include "dbus.h"
+#include "term.h"
+#include "video.h"
 
 struct input_key_event {
 	uint16_t code;
@@ -16,6 +18,8 @@ struct input_key_event {
 };
 
 int input_init();
+int input_run(bool standalone);
+void input_set_terminal(terminal_t*);
 void input_close();
 void input_set_dbus(dbus_t* dbus);
 int input_setfds(fd_set *read_set, fd_set *exception_set);

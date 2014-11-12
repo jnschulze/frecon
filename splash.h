@@ -11,7 +11,7 @@
 
 typedef struct _splash_t splash_t;
 
-splash_t* splash_init(video_t *video);
+splash_t* splash_init();
 int splash_destroy(splash_t*);
 int splash_add_image(splash_t*, const char* path);
 int splash_set_frame_rate(splash_t *splash, int32_t rate);

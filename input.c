@@ -4,6 +4,7 @@
  * found in the LICENSE file.
  */
 
+#include <ctype.h>
 #include <fcntl.h>
 #include <libtsm.h>
 #include <stdint.h>
@@ -17,11 +18,20 @@
 #include "input.h"
 #include "dbus_interface.h"
 #include "dbus.h"
+#include "keysym.h"
 #include "util.h"
+
+#define MAX_TERMINALS    (5)
 
 struct input_dev {
 	int fd;
 	char *path;
+};
+
+struct keyboard_state {
+	int shift_state;
+	int control_state;
+	int alt_state;
 };
 
 struct {
@@ -30,15 +40,173 @@ struct {
 	int udev_fd;
 	unsigned int ndevs;
 	struct input_dev *devs;
+	struct keyboard_state kbd_state;
 	dbus_t *dbus;
+	uint32_t  current_terminal;
+	terminal_t *terminals[MAX_TERMINALS];
 } input = {
 	.udev = NULL,
 	.udev_monitor = NULL,
 	.udev_fd = -1,
 	.ndevs = 0,
 	.devs = NULL,
-	.dbus = NULL
+	.dbus = NULL,
+	.current_terminal = 0
 };
+
+static int input_special_key(struct input_key_event *ev)
+{
+	unsigned int i;
+
+	uint32_t ignore_keys[] = {
+		BTN_TOUCH, // touchpad events
+		BTN_TOOL_FINGER,
+		BTN_TOOL_DOUBLETAP,
+		BTN_TOOL_TRIPLETAP,
+		BTN_TOOL_QUADTAP,
+		BTN_TOOL_QUINTTAP,
+		BTN_LEFT, // mouse buttons
+		BTN_RIGHT,
+		BTN_MIDDLE,
+		BTN_SIDE,
+		BTN_EXTRA,
+		BTN_FORWARD,
+		BTN_BACK,
+		BTN_TASK
+	};
+
+	for (i = 0; i < ARRAY_SIZE(ignore_keys); i++)
+		if (ev->code == ignore_keys[i])
+			return 1;
+
+	switch (ev->code) {
+	case KEY_LEFTSHIFT:
+	case KEY_RIGHTSHIFT:
+		input.kbd_state.shift_state = ! !ev->value;
+		return 1;
+	case KEY_LEFTCTRL:
+	case KEY_RIGHTCTRL:
+		input.kbd_state.control_state = ! !ev->value;
+		return 1;
+	case KEY_LEFTALT:
+	case KEY_RIGHTALT:
+		input.kbd_state.alt_state = ! !ev->value;
+		return 1;
+	}
+
+	if (input.kbd_state.shift_state && ev->value) {
+		switch (ev->code) {
+		case KEY_PAGEUP:
+			term_page_up(input.terminals[input.current_terminal]);
+			return 1;
+		case KEY_PAGEDOWN:
+			term_page_down(input.terminals[input.current_terminal]);
+			return 1;
+		case KEY_UP:
+			term_line_up(input.terminals[input.current_terminal]);
+			return 1;
+		case KEY_DOWN:
+			term_line_down(input.terminals[input.current_terminal]);
+			return 1;
+		}
+	}
+
+	if (input.kbd_state.alt_state && input.kbd_state.control_state && ev->value) {
+		switch (ev->code) {
+			case KEY_F1:
+				input_ungrab();
+				input.terminals[input.current_terminal]->active = false;
+				(void)dbus_method_call0(input.dbus,
+					kLibCrosServiceName,
+					kLibCrosServicePath,
+					kLibCrosServiceInterface,
+					kTakeDisplayOwnership);
+				break;
+			case KEY_F2:
+			case KEY_F3:
+			case KEY_F4:
+			case KEY_F5:
+			case KEY_F6:
+			case KEY_F7:
+			case KEY_F8:
+			case KEY_F9:
+			case KEY_F10:
+				(void)dbus_method_call0(input.dbus,
+					kLibCrosServiceName,
+					kLibCrosServicePath,
+					kLibCrosServiceInterface,
+					kReleaseDisplayOwnership);
+				break;
+		}
+
+		if ((ev->code >= KEY_F2) && (ev->code <= KEY_F4)) {
+			terminal_t* terminal =
+				input.terminals[input.current_terminal];
+			if (term_is_active(terminal))
+					terminal->active = false;
+			input.current_terminal = ev->code - KEY_F2;
+			terminal = input.terminals[input.current_terminal];
+			if (terminal == NULL) {
+				input.terminals[input.current_terminal] =
+					term_init();
+				terminal =
+					input.terminals[input.current_terminal];
+				if (!term_is_valid(terminal)) {
+					LOG(ERROR, "Term init failed");
+					return 1;
+				}
+			}
+			input.terminals[input.current_terminal]->active = true;
+			input_grab();
+			video_setmode(terminal->video);
+			term_redraw(terminal);
+		}
+
+		return 1;
+
+	}
+
+	return 0;
+}
+
+static void input_get_keysym_and_unicode(struct input_key_event *event,
+		uint32_t *keysym, uint32_t *unicode)
+{
+	struct {
+		uint32_t code;
+		uint32_t keysym;
+	} non_ascii_keys[] = {
+		{ KEY_ESC, KEYSYM_ESC},
+		{ KEY_HOME, KEYSYM_HOME},
+		{ KEY_LEFT, KEYSYM_LEFT},
+		{ KEY_UP, KEYSYM_UP},
+		{ KEY_RIGHT, KEYSYM_RIGHT},
+		{ KEY_DOWN, KEYSYM_DOWN},
+		{ KEY_PAGEUP, KEYSYM_PAGEUP},
+		{ KEY_PAGEDOWN, KEYSYM_PAGEDOWN},
+		{ KEY_END, KEYSYM_END},
+		{ KEY_INSERT, KEYSYM_INSERT},
+		{ KEY_DELETE, KEYSYM_DELETE},
+	};
+
+	for (unsigned i = 0; i < ARRAY_SIZE(non_ascii_keys); i++) {
+		if (non_ascii_keys[i].code == event->code) {
+			*keysym = non_ascii_keys[i].keysym;
+			*unicode = -1;
+			return;
+		}
+	}
+
+	if (event->code >= ARRAY_SIZE(keysym_table) / 2) {
+		*keysym = '?';
+	} else {
+		*keysym = keysym_table[event->code * 2 + input.kbd_state.shift_state];
+		if ((input.kbd_state.control_state) && isascii(*keysym))
+			*keysym = tolower(*keysym) - 'a' + 1;
+	}
+
+	*unicode = *keysym;
+}
 
 static int input_add(const char *devname)
 {
@@ -204,9 +372,9 @@ static void report_user_activity(void)
 			&activity_type);
 
 	(void)dbus_message_new_method_call(kPowerManagerServiceName,
-					   kPowerManagerServicePath,
-					   kPowerManagerInterface,
-					   kHandleUserActivityMethod);
+						kPowerManagerServicePath,
+						kPowerManagerInterface,
+						kHandleUserActivityMethod);
 
 }
 
@@ -262,6 +430,75 @@ struct input_key_event *input_get_event(fd_set * read_set,
 	}
 
 	return NULL;
+}
+
+int input_run(bool standalone)
+{
+	fd_set read_set, exception_set;
+	terminal_t* terminal;
+
+	if (standalone) {
+		(void)dbus_method_call0(input.dbus,
+			kLibCrosServiceName,
+			kLibCrosServicePath,
+			kLibCrosServiceInterface,
+			kReleaseDisplayOwnership);
+
+		input.terminals[input.current_terminal] = term_init();
+		terminal = input.terminals[input.current_terminal];
+		if (term_is_valid(terminal)) {
+			input_grab();
+		}
+	}
+
+	while (1) {
+		terminal = input.terminals[input.current_terminal];
+
+		FD_ZERO(&read_set);
+		FD_ZERO(&exception_set);
+		term_add_fd(terminal, &read_set, &exception_set);
+
+		int maxfd = input_setfds(&read_set, &exception_set);
+
+		maxfd = MAX(maxfd, term_fd(terminal)) + 1;
+
+		select(maxfd, &read_set, NULL, &exception_set, NULL);
+
+		if (term_exception(terminal, &exception_set))
+			return -1;
+
+		struct input_key_event *event;
+		event = input_get_event(&read_set, &exception_set);
+		if (event) {
+			if (!input_special_key(event) && event->value) {
+				uint32_t keysym, unicode;
+				if (term_is_active(terminal)) {
+					input_get_keysym_and_unicode(
+						event, &keysym, &unicode);
+					term_key_event(terminal,
+							keysym, unicode);
+				}
+			}
+
+			input_put_event(event);
+		}
+
+
+		term_dispatch_io(terminal, &read_set);
+
+		if (term_is_valid(terminal)) {
+			if (term_is_child_done(terminal)) {
+				term_close(terminal);
+				input.terminals[input.current_terminal] = term_init();
+				terminal = input.terminals[input.current_terminal];
+				if (!term_is_valid(terminal)) {
+					return -1;
+				}
+			}
+		}
+	}
+
+	return 0;
 }
 
 void input_put_event(struct input_key_event *event)

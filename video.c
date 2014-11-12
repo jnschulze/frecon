@@ -102,7 +102,7 @@ static drmModeConnector *find_used_connector_by_type(int fd,
 		connector = drmModeGetConnector(fd, resources->connectors[i]);
 		if (connector) {
 			if ((connector->connector_type == type) &&
-					(is_connector_used(fd, resources, connector)))
+					(connector->connection == DRM_MODE_CONNECTED))
 				return connector;
 
 			drmModeFreeConnector(connector);
@@ -214,6 +214,7 @@ static int video_buffer_create(video_t *video, drmModeCrtc *crtc, drmModeConnect
 	}
 
 	video->buffer_properties.size = create_dumb.size;
+	video->buffer_handle = create_dumb.handle;
 
 	struct drm_mode_map_dumb map_dumb;
 	map_dumb.handle = create_dumb.handle;
@@ -248,8 +249,9 @@ destroy_buffer:
 	return ret;
 }
 
-video_t* video_init(int32_t *width, int32_t *height, int32_t *pitch, int32_t *scaling)
+video_t* video_init()
 {
+	int32_t width, height, scaling, pitch;
 	video_t *new_video = (video_t*)calloc(1, sizeof(video_t));
 
 	new_video->fd = -1;
@@ -290,32 +292,32 @@ video_t* video_init(int32_t *width, int32_t *height, int32_t *pitch, int32_t *sc
 	}
 
 	if (video_buffer_create(new_video, new_video->crtc,
-				new_video->main_monitor_connector, pitch)) {
+				new_video->main_monitor_connector, &pitch)) {
 		LOG(ERROR, "video_buffer_create failed");
 		goto fail;
 	}
 
-	*width = new_video->crtc->mode.hdisplay;
-	*height = new_video->crtc->mode.vdisplay;
+	width = new_video->crtc->mode.hdisplay;
+	height = new_video->crtc->mode.vdisplay;
 
 	if (!new_video->main_monitor_connector->mmWidth)
-		*scaling = 1;
+		scaling = 1;
 	else {
-		int dots_per_cm = *width * 10 / new_video->main_monitor_connector->mmWidth;
+		int dots_per_cm = width * 10 / new_video->main_monitor_connector->mmWidth;
 		if (dots_per_cm > 133)
-			*scaling = 4;
+			scaling = 4;
 		else if (dots_per_cm > 100)
-			*scaling = 3;
+			scaling = 3;
 		else if (dots_per_cm > 67)
-			*scaling = 2;
+			scaling = 2;
 		else
-			*scaling = 1;
+			scaling = 1;
 	}
 
-	new_video->buffer_properties.width = *width;
-	new_video->buffer_properties.height = *height;
-	new_video->buffer_properties.pitch = *pitch;
-	new_video->buffer_properties.scaling = *scaling;
+	new_video->buffer_properties.width = width;
+	new_video->buffer_properties.height = height;
+	new_video->buffer_properties.pitch = pitch;
+	new_video->buffer_properties.scaling = scaling;
 
 	if (drmDropMaster(new_video->fd) != 0) {
 		LOG(WARNING, "video_init unable to drop master");
@@ -363,10 +365,38 @@ int32_t video_setmode(video_t* video)
 
 void video_close(video_t *video)
 {
+	struct drm_mode_destroy_dumb destroy_dumb;
+
+	if (!video)
+		return;
+
+	destroy_dumb.handle = video->buffer_handle;
+	drmIoctl(video->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
+
 	if (video->fd >= 0) {
+		if (video->main_monitor_connector) {
+			disable_connector(video->fd, video->drm_resources,
+					video->main_monitor_connector);
+			drmModeFreeConnector(video->main_monitor_connector);
+			video->main_monitor_connector = NULL;
+		}
+
+		if (video->crtc) {
+			drmModeFreeCrtc(video->crtc);
+			video->crtc = NULL;
+		}
+
+		if (video->drm_resources) {
+			drmModeFreeResources(video->drm_resources);
+			video->drm_resources = NULL;
+		}
+
 		drmClose(video->fd);
 		video->fd = -1;
 	}
+
+	free(video);
+
 }
 
 

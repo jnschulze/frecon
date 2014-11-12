@@ -56,7 +56,7 @@ bool dbus_method_call0(dbus_t* dbus, const char* service_name,
 		return false;
 
 	if (!dbus_connection_send_with_reply_and_block(dbus->conn,
-				msg, -1, NULL)) {
+				msg, 3000, NULL)) {
 		dbus_message_unref(msg);
 		return false;
 	}
@@ -86,7 +86,7 @@ bool dbus_method_call1(dbus_t* dbus, const char* service_name,
 	}
 
 	if (!dbus_connection_send_with_reply_and_block(dbus->conn,
-				msg, -1, NULL)) {
+				msg, 3000, NULL)) {
 		dbus_message_unref(msg);
 		return false;
 	}

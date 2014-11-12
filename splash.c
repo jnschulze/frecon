@@ -50,12 +50,139 @@ struct _splash_t {
 	dbus_t          *dbus;
 };
 
-static int splash_load_image_from_file(splash_t* splash, splash_image_t* image);
-static int splash_image_show(splash_t *splash, splash_image_t* image,
-		uint32_t *video_buffer);
-static void splash_rgb(png_struct *png, png_row_info *row_info, png_byte *data);
+static void splash_rgb(png_struct *png, png_row_info *row_info, png_byte *data)
+{
+	unsigned int i;
 
-splash_t* splash_init(video_t *video)
+	for (i = 0; i < row_info->rowbytes; i+= 4) {
+		uint8_t r, g, b, a;
+		uint32_t pixel;
+
+		r = data[i + 0];
+		g = data[i + 1];
+		b = data[i + 2];
+		a = data[i + 3];
+		pixel = (a << 24) | (r << 16) | (g << 8) | b;
+		memcpy(data + i, &pixel, sizeof(pixel));
+	}
+}
+
+static int splash_load_image_from_file(splash_t* splash, splash_image_t* image)
+{
+	png_struct   *png;
+	png_info     *info;
+	png_uint_32   width, height, pitch, row;
+	int           bpp, color_type, interlace_mthd;
+	png_byte    **rows;
+
+	if (image->fp != NULL)
+		return 1;
+
+	image->fp = fopen(image->filename, "rb");
+	if (image->fp == NULL)
+		return 1;
+
+	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	info = png_create_info_struct(png);
+
+	if (info == NULL)
+		return 1;
+
+	png_init_io(png, image->fp);
+
+	if (setjmp(png_jmpbuf(png)) != 0) {
+		fclose(image->fp);
+		return 1;
+	}
+
+	png_read_info(png, info);
+	png_get_IHDR(png, info, &width, &height, &bpp, &color_type,
+			&interlace_mthd, NULL, NULL);
+
+	pitch = 4 * width;
+
+	switch (color_type)
+	{
+		case PNG_COLOR_TYPE_PALETTE:
+			png_set_palette_to_rgb(png);
+			break;
+
+		case PNG_COLOR_TYPE_GRAY:
+		case PNG_COLOR_TYPE_GRAY_ALPHA:
+			png_set_gray_to_rgb(png);
+	}
+
+	if (png_get_valid(png, info, PNG_INFO_tRNS))
+		png_set_tRNS_to_alpha(png);
+
+	switch (bpp)
+	{
+		default:
+			if (bpp < 8)
+				png_set_packing(png);
+			break;
+		case 16:
+			png_set_strip_16(png);
+			break;
+	}
+
+	if (interlace_mthd != PNG_INTERLACE_NONE)
+		png_set_interlace_handling(png);
+
+	png_set_filler(png, 0xff, PNG_FILLER_AFTER);
+
+	png_set_read_user_transform_fn(png, splash_rgb);
+	png_read_update_info(png, info);
+
+	rows = malloc(height * sizeof(*rows));
+	image->layout.address = malloc(height * pitch);
+
+	for (row = 0; row < height; row++) {
+		rows[row] = &image->layout.as_png_bytes[row * pitch];
+	}
+
+	png_read_image(png, rows);
+	free(rows);
+
+	png_read_end(png, info);
+	fclose(image->fp);
+	png_destroy_read_struct(&png, &info, NULL);
+
+	image->width = width;
+	image->height = height;
+	image->pitch = pitch;
+
+	return 0;
+}
+
+static int splash_image_show(splash_t *splash,
+		splash_image_t* image,
+		uint32_t *video_buffer)
+{
+	uint32_t j;
+	uint32_t startx, starty;
+	buffer_properties_t *bp;
+	uint32_t *buffer;
+
+
+	bp = video_get_buffer_properties(splash->video);
+	startx = (bp->width - image->width) / 2;
+	starty = (bp->height - image->height) / 2;
+
+	buffer = video_lock(splash->video);
+
+	if (buffer != NULL) {
+		for (j = starty; j < starty + image->height; j++) {
+			memcpy(buffer + j * bp->pitch/4 + startx,
+					image->layout.address + (j - starty)*image->pitch, image->pitch);
+		}
+	}
+
+	video_unlock(splash->video);
+	return 0;
+}
+
+splash_t* splash_init()
 {
 	splash_t* splash;
 
@@ -64,7 +191,7 @@ splash_t* splash_init(video_t *video)
 		return NULL;
 
 	splash->num_images = 0;
-	splash->video = video;
+	splash->video = video_init();
 
 	return splash;
 }
@@ -108,6 +235,7 @@ frecon_dbus_path_message_func(dbus_t* dbus, void* user_data)
 		exit(EXIT_SUCCESS);
 
 	dbus_stop_wait(dbus);
+	video_close(splash->video);
 }
 
 static void splash_clear_screen(splash_t *splash, uint32_t *video_buffer)
@@ -207,25 +335,27 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		}
 
 
-		/*
-		 * Now set drm_master_relax so that we can transfer drm_master between
-		 * chrome and frecon
-		 */
-		fd = open("/sys/kernel/debug/dri/drm_master_relax", O_WRONLY);
-		if (fd != -1) {
-			num_written = write(fd, "Y", 1);
-			close(fd);
-
+		if (splash->devmode) {
 			/*
-			 * If we can't set drm_master relax, then transitions between chrome
-			 * and frecon won't work.  No point in having frecon hold any resources
+			 * Now set drm_master_relax so that we can transfer drm_master between
+			 * chrome and frecon
 			 */
-			if (num_written != 1) {
-				LOG(ERROR, "Unable to set drm_master_relax");
-				splash->devmode = false;
+			fd = open("/sys/kernel/debug/dri/drm_master_relax", O_WRONLY);
+			if (fd != -1) {
+				num_written = write(fd, "Y", 1);
+				close(fd);
+
+				/*
+				 * If we can't set drm_master relax, then transitions between chrome
+				 * and frecon won't work.  No point in having frecon hold any resources
+				 */
+				if (num_written != 1) {
+					LOG(ERROR, "Unable to set drm_master_relax");
+					splash->devmode = false;
+				}
+			} else {
+				LOG(ERROR, "unable to open drm_master_relax");
 			}
-		} else {
-			LOG(ERROR, "unable to open drm_master_relax");
 		}
 	}
 
@@ -238,124 +368,6 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 	return status;
 }
 
-
-static int splash_load_image_from_file(splash_t* splash, splash_image_t* image)
-{
-	png_struct   *png;
-	png_info     *info;
-	png_uint_32   width, height, pitch, row;
-	int           bpp, color_type, interlace_mthd;
-	png_byte    **rows;
-
-	if (image->fp != NULL)
-		return 1;
-
-	image->fp = fopen(image->filename, "rb");
-	if (image->fp == NULL)
-		return 1;
-
-
-	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	info = png_create_info_struct(png);
-
-	if (info == NULL)
-		return 1;
-
-	png_init_io(png, image->fp);
-
-	if (setjmp(png_jmpbuf(png)) != 0) {
-		fclose(image->fp);
-		return 1;
-	}
-
-	png_read_info(png, info);
-	png_get_IHDR(png, info, &width, &height, &bpp, &color_type,
-			&interlace_mthd, NULL, NULL);
-
-	pitch = 4 * width;
-
-	switch (color_type)
-	{
-		case PNG_COLOR_TYPE_PALETTE:
-			png_set_palette_to_rgb(png);
-			break;
-
-		case PNG_COLOR_TYPE_GRAY:
-		case PNG_COLOR_TYPE_GRAY_ALPHA:
-			png_set_gray_to_rgb(png);
-	}
-
-	if (png_get_valid(png, info, PNG_INFO_tRNS))
-		png_set_tRNS_to_alpha(png);
-
-	switch (bpp)
-	{
-		default:
-			if (bpp < 8)
-				png_set_packing(png);
-			break;
-		case 16:
-			png_set_strip_16(png);
-			break;
-	}
-
-	if (interlace_mthd != PNG_INTERLACE_NONE)
-		png_set_interlace_handling(png);
-
-	png_set_filler(png, 0xff, PNG_FILLER_AFTER);
-
-	png_set_read_user_transform_fn(png, splash_rgb);
-	png_read_update_info(png, info);
-
-	rows = malloc(height * sizeof(*rows));
-	image->layout.address = malloc(height * pitch);
-
-	for (row = 0; row < height; row++) {
-		rows[row] = &image->layout.as_png_bytes[row * pitch];
-	}
-
-	png_read_image(png, rows);
-	free(rows);
-
-	png_read_end(png, info);
-	fclose(image->fp);
-	png_destroy_read_struct(&png, &info, NULL);
-
-	image->width = width;
-	image->height = height;
-	image->pitch = pitch;
-
-	return 0;
-}
-
-static
-int splash_image_show(splash_t *splash,
-		splash_image_t* image,
-		uint32_t *video_buffer)
-{
-	uint32_t j;
-	uint32_t startx, starty;
-	buffer_properties_t *bp;
-	uint32_t *buffer;
-
-
-	bp = video_get_buffer_properties(splash->video);
-	startx = (bp->width - image->width) / 2;
-	starty = (bp->height - image->height) / 2;
-
-	buffer = video_lock(splash->video);
-
-	if (buffer != NULL) {
-		for (j = starty; j < starty + image->height; j++) {
-			memcpy(buffer + j * bp->pitch/4 + startx,
-					image->layout.address + (j - starty)*image->pitch, image->pitch);
-		}
-	}
-
-	video_unlock(splash->video);
-	return 0;
-}
-
 void splash_set_dbus(splash_t* splash, dbus_t* dbus)
 {
 	splash->dbus = dbus;
@@ -364,22 +376,4 @@ void splash_set_dbus(splash_t* splash, dbus_t* dbus)
 void splash_set_devmode(splash_t* splash)
 {
 	splash->devmode = true;
-}
-
-static
-void splash_rgb(png_struct *png, png_row_info *row_info, png_byte *data)
-{
-	unsigned int i;
-
-	for (i = 0; i < row_info->rowbytes; i+= 4) {
-		uint8_t r, g, b, a;
-		uint32_t pixel;
-
-		r = data[i + 0];
-		g = data[i + 1];
-		b = data[i + 2];
-		a = data[i + 3];
-		pixel = (a << 24) | (r << 16) | (g << 8) | b;
-		memcpy(data + i, &pixel, sizeof(pixel));
-	}
 }
