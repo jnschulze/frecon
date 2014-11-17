@@ -252,6 +252,7 @@ destroy_buffer:
 video_t* video_init()
 {
 	int32_t width, height, scaling, pitch;
+	int i;
 	video_t *new_video = (video_t*)calloc(1, sizeof(video_t));
 
 	new_video->fd = -1;
@@ -280,8 +281,33 @@ video_t* video_init()
 		goto fail;
 	}
 
+	for (i = 0; i < new_video->main_monitor_connector->count_props; i++) {
+		drmModePropertyPtr prop;
+		drmModePropertyBlobPtr blob_ptr;
+		prop = drmModeGetProperty(new_video->fd, new_video->main_monitor_connector->props[i]);
+		if (prop) {
+			if (strcmp(prop->name, "EDID") == 0) {
+				blob_ptr = drmModeGetPropertyBlob(new_video->fd,
+					new_video->main_monitor_connector->prop_values[i]);
+				if (blob_ptr) {
+					switch (new_video->main_monitor_connector->connector_type) {
+						case DRM_MODE_CONNECTOR_LVDS:
+						case DRM_MODE_CONNECTOR_eDP:
+							new_video->internal_panel = 1;
+							break;
+						default:
+							new_video->internal_panel = 0;
+					}
+					memcpy(&new_video->edid, blob_ptr->data, EDID_SIZE);
+					drmModeFreePropertyBlob(blob_ptr);
+				}
+			}
+		}
+	}
+
 	disable_non_main_connectors(new_video->fd,
 			new_video->drm_resources, new_video->main_monitor_connector);
+
 
 	new_video->crtc = find_crtc_for_connector(new_video->fd,
 			new_video->drm_resources, new_video->main_monitor_connector);
