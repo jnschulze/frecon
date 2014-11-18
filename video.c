@@ -384,6 +384,18 @@ int32_t video_setmode(video_t* video)
 					 1,  // connector_count
 					 &video->crtc->mode); // mode
 
+	if (ret) {
+		LOG(ERROR, "Unable to set crtc");
+		goto done;
+	}
+
+	ret = drmModeSetCursor(video->fd, video->crtc->crtc_id,
+			0, 0, 0);
+
+	if (ret)
+		LOG(ERROR, "Unable to hide cursor");
+
+done:
 	drmDropMaster(video->fd);
 
 	return ret;
