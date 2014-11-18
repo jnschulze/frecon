@@ -32,6 +32,7 @@ struct keyboard_state {
 	int shift_state;
 	int control_state;
 	int alt_state;
+	int search_state;
 };
 
 struct {
@@ -53,6 +54,32 @@ struct {
 	.dbus = NULL,
 	.current_terminal = 0
 };
+
+static void report_user_activity(int activity_type)
+{
+	dbus_method_call1(input.dbus, kPowerManagerServiceName,
+			kPowerManagerServicePath,
+			kPowerManagerInterface,
+			kHandleUserActivityMethod,
+			&activity_type);
+
+	switch (activity_type) {
+		case USER_ACTIVITY_BRIGHTNESS_UP_KEY_PRESS:
+				(void)dbus_method_call0(input.dbus,
+					kPowerManagerServiceName,
+					kPowerManagerServicePath,
+					kPowerManagerInterface,
+					kIncreaseScreenBrightnessMethod);
+				break;
+		case USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS:
+				(void)dbus_method_call0(input.dbus,
+					kPowerManagerServiceName,
+					kPowerManagerServicePath,
+					kPowerManagerInterface,
+					kDecreaseScreenBrightnessMethod);
+				break;
+	}
+}
 
 static int input_special_key(struct input_key_event *ev)
 {
@@ -92,6 +119,9 @@ static int input_special_key(struct input_key_event *ev)
 	case KEY_RIGHTALT:
 		input.kbd_state.alt_state = ! !ev->value;
 		return 1;
+	case KEY_LEFTMETA: // search key
+		input.kbd_state.search_state = ! !ev->value;
+		return 1;
 	}
 
 	if (input.kbd_state.shift_state && ev->value) {
@@ -108,6 +138,17 @@ static int input_special_key(struct input_key_event *ev)
 		case KEY_DOWN:
 			term_line_down(input.terminals[input.current_terminal]);
 			return 1;
+		}
+	}
+
+	if (input.kbd_state.search_state && ev->value) {
+		switch (ev->code) {
+			case KEY_UP:
+				term_page_up(input.terminals[input.current_terminal]);
+				return 1;
+			case KEY_DOWN:
+				term_page_down(input.terminals[input.current_terminal]);
+				return 1;
 		}
 	}
 
@@ -164,6 +205,28 @@ static int input_special_key(struct input_key_event *ev)
 
 		return 1;
 
+	}
+
+	if ((!input.kbd_state.search_state) && ev->value &&
+		(ev->code >= KEY_F1) && (ev->code <= KEY_F10)) {
+		switch (ev->code) {
+			case KEY_F1:
+			case KEY_F2:
+			case KEY_F3:
+			case KEY_F4:
+			case KEY_F5:
+				break;
+			case KEY_F6:
+			case KEY_F7:
+				report_user_activity(USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS -
+						(ev->code - KEY_F6));
+				break;
+			case KEY_F8:
+			case KEY_F9:
+			case KEY_F10:
+				break;
+		}
+		return 1;
 	}
 
 	return 0;
@@ -361,23 +424,6 @@ int input_setfds(fd_set * read_set, fd_set * exception_set)
 	return max;
 }
 
-static void report_user_activity(void)
-{
-	int activity_type = USER_ACTIVITY_OTHER;
-
-	dbus_method_call1(input.dbus, kPowerManagerServiceName,
-			kPowerManagerServicePath,
-			kPowerManagerInterface,
-			kHandleUserActivityMethod,
-			&activity_type);
-
-	(void)dbus_message_new_method_call(kPowerManagerServiceName,
-						kPowerManagerServicePath,
-						kPowerManagerInterface,
-						kHandleUserActivityMethod);
-
-}
-
 struct input_key_event *input_get_event(fd_set * read_set,
 					fd_set * exception_set)
 {
@@ -423,7 +469,7 @@ struct input_key_event *input_get_event(fd_set * read_set,
 				    malloc(sizeof (*event));
 				event->code = ev.code;
 				event->value = ev.value;
-				report_user_activity();
+				report_user_activity(USER_ACTIVITY_OTHER);
 				return event;
 			}
 		}
