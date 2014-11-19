@@ -530,7 +530,12 @@ static int pty_read(struct shl_pty *pty)
 	 * are. Therefore, we have some rather arbitrary limit on how fast
 	 * we read. If we reach it, we simply return EAGAIN to the caller and
 	 * let them deal with it. */
-	num = 50;
+
+	/* Setting this as low as possible.  It will slow down long
+	 * file dumps, but, will respond to ctrl-c quicker, which is better
+	 * for our usage model
+	 */
+	num = 1;
 	do {
 		len = read(pty->fd, pty->in_buf, sizeof (pty->in_buf));
 		if (len > 0)
