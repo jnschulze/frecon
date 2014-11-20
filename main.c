@@ -4,20 +4,21 @@
  * found in the LICENSE file.
  */
 
+#include <getopt.h>
 #include <libtsm.h>
+#include <memory.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <memory.h>
-#include <getopt.h>
-#include <stdbool.h>
 
+#include "dbus.h"
 #include "input.h"
+#include "main.h"
+#include "splash.h"
 #include "term.h"
 #include "video.h"
-#include "dbus.h"
 #include "util.h"
-#include "splash.h"
 
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
@@ -36,24 +37,27 @@ static struct option command_options[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-typedef struct {
-		bool    print_resolution;
-		bool    frame_interval;
-		bool    standalone;
-} commandflags_t;
+commandflags_t command_flags;
+
+static char *default_cmd_line[] = {
+	"/sbin/agetty",
+	"-",
+	"9600",
+	"xterm",
+	NULL
+};
 
 int main(int argc, char* argv[])
 {
 	int ret;
 	int c;
 	int i;
-	commandflags_t flags;
 	splash_t *splash;
 	video_t  *video;
 	dbus_t *dbus;
 
-	memset(&flags, 0, sizeof(flags));
-	flags.standalone = true;
+	memset(&command_flags, 0, sizeof(command_flags));
+	command_flags.standalone = true;
 
 	ret = input_init();
 	if (ret) {
@@ -66,6 +70,9 @@ int main(int argc, char* argv[])
 		LOG(ERROR, "splash init failed");
 		return EXIT_FAILURE;
 	}
+
+	for (i = 0; i < MAX_TERMINALS; i++)
+		command_flags.exec[i] = default_cmd_line;
 
 	for (;;) {
 		c = getopt_long(argc, argv, "", command_options, NULL);
@@ -80,7 +87,7 @@ int main(int argc, char* argv[])
 
 			case FLAG_DAEMON:
 				daemonize();
-				flags.standalone = false;
+				command_flags.standalone = false;
 				break;
 
 			case FLAG_DEV_MODE:
@@ -88,7 +95,7 @@ int main(int argc, char* argv[])
 				break;
 
 			case FLAG_PRINT_RESOLUTION:
-				flags.print_resolution = true;
+				command_flags.print_resolution = true;
 				break;
 
 			case FLAG_FRAME_INTERVAL:
@@ -96,7 +103,7 @@ int main(int argc, char* argv[])
 				for (i = optind; i < argc; i++) {
 					 splash_add_image(splash, argv[i]);
 				}
-				flags.frame_interval = true;
+				command_flags.frame_interval = true;
 				break;
 		}
 	}
@@ -110,12 +117,12 @@ int main(int argc, char* argv[])
 	 * who can then pass it to the other objects that need it
 	 */
 	dbus = NULL;
-	if (flags.print_resolution) {
+	if (command_flags.print_resolution) {
 		video = video_init();
 		printf("%d %d", video_getwidth(video), video_getheight(video));
 		return EXIT_SUCCESS;
 	}
-	else if (flags.frame_interval) {
+	else if (command_flags.frame_interval) {
 		ret = splash_run(splash, &dbus);
 		if (ret) {
 				LOG(ERROR, "splash_run failed: %d", ret);
@@ -133,7 +140,7 @@ int main(int argc, char* argv[])
 	}
 
 	input_set_dbus(dbus);
-	ret = input_run(flags.standalone);
+	ret = input_run(command_flags.standalone);
 
 	input_close();
 
