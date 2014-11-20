@@ -6,7 +6,6 @@
 
 #include <ctype.h>
 #include <libtsm.h>
-#include <paths.h>
 #include <stdio.h>
 #include <sys/select.h>
 #include <sys/types.h>
@@ -19,6 +18,7 @@
 #include "util.h"
 #include "video.h"
 #include "dbus_interface.h"
+#include "main.h"
 
 struct term {
 	struct tsm_screen *screen;
@@ -32,19 +32,13 @@ struct term {
 	uint32_t *dst_image;
 };
 
-static void __attribute__ ((noreturn)) term_run_child()
+static void __attribute__ ((noreturn)) term_run_child(unsigned int term_id)
 {
-	char **argv = (char *[]) {
-		getenv("SHELL") ? : "/bin/bash",
-		"-il",
-		NULL
-	};
-
 	printf("Welcome to frecon!\n");
-	printf("running %s\n", argv[0]);
+	printf("running %s\n", flags.exec[term_id][0]);
 	/* XXX figure out how to fix "top" for xterm-256color */
 	setenv("TERM", "xterm", 1);
-	execve(argv[0], argv, environ);
+	execve(flags.exec[term_id][0], flags.exec[term_id], environ);
 	exit(1);
 }
 
@@ -154,7 +148,7 @@ static void log_tsm(void *data, const char *file, int line, const char *fn,
 	fprintf(stderr, "\n");
 }
 
-terminal_t* term_init()
+terminal_t* term_init(unsigned int term_id)
 {
 	const int scrollback_size = 200;
 	uint32_t char_width, char_height;
@@ -217,7 +211,7 @@ terminal_t* term_init()
 		term_close(new_terminal);
 		return NULL;
 	} else if (status == 0) {
-		term_run_child();
+		term_run_child(term_id);
 		exit(1);
 	}
 

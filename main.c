@@ -18,10 +18,17 @@
 #include "dbus.h"
 #include "util.h"
 #include "splash.h"
+#include "main.h"
 
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
 #define  FLAG_DEV_MODE                     'e'
+#define  FLAG_EXEC                         'x'
+#define  FLAG_EXEC0                        '0'
+#define  FLAG_EXEC1                        '1'
+#define  FLAG_EXEC2                        '2'
+#define  FLAG_EXEC3                        '3'
+#define  FLAG_EXEC4                        '4'
 #define  FLAG_FRAME_INTERVAL               'f'
 #define  FLAG_GAMMA                        'g'
 #define  FLAG_PRINT_RESOLUTION             'p'
@@ -30,24 +37,129 @@ static struct option command_options[] = {
 	{ "clear", required_argument, NULL, FLAG_CLEAR },
 	{ "daemon", no_argument, NULL, FLAG_DAEMON },
 	{ "dev-mode", no_argument, NULL, FLAG_DEV_MODE },
+	{ "exec", required_argument, NULL, FLAG_EXEC },
 	{ "frame-interval", required_argument, NULL, FLAG_FRAME_INTERVAL },
 	{ "gamma", required_argument, NULL, FLAG_GAMMA },
 	{ "print-resolution", no_argument, NULL, FLAG_PRINT_RESOLUTION },
 	{ NULL, 0, NULL, 0 }
 };
 
-typedef struct {
-		bool    print_resolution;
-		bool    frame_interval;
-		bool    standalone;
-} commandflags_t;
+commandflags_t flags;
+
+static void freecmdline(char **argv)
+{
+	int i;
+	if (!argv)
+		return;
+	for (i = 0; argv[i]; i++) {
+		free(argv[i]);
+	}
+	free(argv);
+}
+
+/*
+ * Parse and split command line into argv style array terminated with NULL
+ * pointer suitable for execve(). Arguments are delimited by spaces, double
+ * quotes can be used for arguments containing spaces and backslash can be
+ * used to escape spaces, double quotes and itself.
+ * In normal operation we expect frecon command line to come from binaries
+ * or scripts running on verified partitions (rootfs or initramfs).
+ */
+static char **splitcmdline(const char *cmdline)
+{
+	bool inside = false, inquotes = false, escape = false;
+	size_t rescount = 0;
+	char *buf = NULL, *out;
+	char **res = calloc(rescount + 1, sizeof(*res));
+
+	if (!res)
+		goto done;
+
+	if (!cmdline)
+		goto err;
+
+	while (1) {
+		if (!inside && *cmdline != ' ') {
+			inside = true;
+			if (!buf)
+				buf = calloc(strlen(cmdline) + 1, sizeof(*buf));
+			if (!buf)
+				goto err;
+			out = buf;
+		}
+		if (inside) {
+			bool skip = false;
+			if (*cmdline == '\\') {
+				if (escape) {
+					escape = false;
+				} else {
+					escape = true;
+					skip = true;
+				}
+			} else
+			if (*cmdline == '"') {
+				if (escape) {
+					escape = false;
+				} else {
+					if (inquotes) {
+						inquotes = false;
+					} else {
+						inquotes = true;
+					}
+					skip = true;
+				}
+			} else
+			if (*cmdline == ' '
+			    || *cmdline == '\0') {
+				if (inquotes) {
+					if (*cmdline == '\0')
+						goto err;
+				} else
+				if (escape && *cmdline == ' ') {
+					escape = false;
+				} else {
+					char **nres;
+					inside = false;
+					*out++ = '\0';
+					nres = realloc(res, (rescount + 2) * sizeof(*res));
+					if (!res)
+						goto err;
+					res = nres;
+					res[rescount] = strdup(buf);
+					if (!res[rescount])
+						goto err;
+					rescount++;
+					res[rescount] = NULL;
+					skip = true;
+				}
+			} else {
+				escape = false;
+			}
+			if (!skip) {
+				*out++ = *cmdline;
+			}
+		}
+		if (*cmdline)
+			cmdline++;
+		else
+			break;
+	}
+
+	goto done;
+
+err:
+	freecmdline(res);
+	res = NULL;
+done:
+	free(buf);
+	return res;
+}
 
 int main(int argc, char* argv[])
 {
 	int ret;
 	int c;
 	int i;
-	commandflags_t flags;
 	splash_t *splash;
 	video_t  *video;
 	dbus_t *dbus;
@@ -66,6 +178,9 @@ int main(int argc, char* argv[])
 		LOG(ERROR, "splash init failed");
 		return EXIT_FAILURE;
 	}
+
+	for (i = 0; i < MAX_TERMINALS; i++)
+		flags.exec[i] = splitcmdline("/sbin/agetty - 9600 xterm");
 
 	for (;;) {
 		c = getopt_long(argc, argv, "", command_options, NULL);
@@ -87,6 +202,36 @@ int main(int argc, char* argv[])
 				splash_set_devmode(splash);
 				break;
 
+			case FLAG_EXEC: {
+				int term = -1;
+				if (optarg[0] >= '0' && optarg[0] <= '9'
+				    && optarg[1] == ',') {
+					term = optarg[0] - '0';
+					if (term >= MAX_TERMINALS) {
+						LOG(ERROR, "Invalid terminal ID %d, expecting 0..%d",
+							term, MAX_TERMINALS-1);
+						return EXIT_FAILURE;
+					}
+				}
+				if (term >= 0) {
+					freecmdline(flags.exec[term]);
+					flags.exec[term] = splitcmdline(optarg + 2);
+					if (!flags.exec[term]) {
+						LOG(ERROR, "Parsing exec command line failed");
+						return EXIT_FAILURE;
+					}
+				} else {
+					for (term = 0; term < MAX_TERMINALS; term++) {
+						freecmdline(flags.exec[term]);
+						flags.exec[term] = splitcmdline(optarg);
+						if (!flags.exec[term]) {
+							LOG(ERROR, "Parsing exec command line failed");
+							return EXIT_FAILURE;
+						}
+					}
+				}
+				break;
+			}
 			case FLAG_PRINT_RESOLUTION:
 				flags.print_resolution = true;
 				break;
@@ -136,6 +281,9 @@ int main(int argc, char* argv[])
 	ret = input_run(flags.standalone);
 
 	input_close();
+
+	for (i = 0; i < MAX_TERMINALS; i++)
+		freecmdline(flags.exec[i]);
 
 	return ret;
 }
