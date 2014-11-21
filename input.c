@@ -6,7 +6,6 @@
 
 #include <ctype.h>
 #include <fcntl.h>
-#include <libtsm.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
