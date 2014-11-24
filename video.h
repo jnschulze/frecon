@@ -58,6 +58,7 @@ int32_t video_getheight(video_t* video);
 int32_t video_getpitch(video_t* video);
 int32_t video_getscaling(video_t* video);
 int32_t video_setmode(video_t* video);
+void video_release(video_t* video);
 bool video_set_gamma(video_t* video, const char *filename);
 void video_close(video_t*);
 uint32_t* video_lock(video_t* video);

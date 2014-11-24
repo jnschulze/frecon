@@ -396,9 +396,13 @@ int32_t video_setmode(video_t* video)
 		LOG(ERROR, "Unable to hide cursor");
 
 done:
-	drmDropMaster(video->fd);
 
 	return ret;
+}
+
+void video_release(video_t* video)
+{
+	drmDropMaster(video->fd);
 }
 
 void video_close(video_t *video)
