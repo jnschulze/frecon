@@ -179,7 +179,7 @@ static int input_special_key(struct input_key_event *ev)
 				break;
 		}
 
-		if ((ev->code >= KEY_F2) && (ev->code <= KEY_F4)) {
+		if ((ev->code >= KEY_F2) && (ev->code < KEY_F2 + MAX_TERMINALS)) {
 			terminal_t* terminal =
 				input.terminals[input.current_terminal];
 			if (term_is_active(terminal))
