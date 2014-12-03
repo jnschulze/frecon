@@ -17,7 +17,7 @@ typedef struct _terminal_t {
   bool active;
 } terminal_t;
 
-terminal_t *term_init(unsigned int term_id);
+terminal_t *term_init();
 void term_close(terminal_t* terminal);
 void term_redraw(terminal_t* terminal);
 void term_set_dbus(terminal_t* terminal, dbus_t* dbus);

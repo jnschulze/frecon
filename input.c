@@ -19,7 +19,8 @@
 #include "dbus.h"
 #include "keysym.h"
 #include "util.h"
-#include "main.h"
+
+#define MAX_TERMINALS    (5)
 
 struct input_dev {
 	int fd;
@@ -187,7 +188,7 @@ static int input_special_key(struct input_key_event *ev)
 			terminal = input.terminals[input.current_terminal];
 			if (terminal == NULL) {
 				input.terminals[input.current_terminal] =
-					term_init(input.current_terminal);
+					term_init();
 				terminal =
 					input.terminals[input.current_terminal];
 				if (!term_is_valid(terminal)) {
@@ -488,7 +489,7 @@ int input_run(bool standalone)
 			kLibCrosServiceInterface,
 			kReleaseDisplayOwnership);
 
-		input.terminals[input.current_terminal] = term_init(input.current_terminal);
+		input.terminals[input.current_terminal] = term_init();
 		terminal = input.terminals[input.current_terminal];
 		if (term_is_valid(terminal)) {
 			input_grab();
@@ -533,7 +534,7 @@ int input_run(bool standalone)
 		if (term_is_valid(terminal)) {
 			if (term_is_child_done(terminal)) {
 				term_close(terminal);
-				input.terminals[input.current_terminal] = term_init(input.current_terminal);
+				input.terminals[input.current_terminal] = term_init();
 				terminal = input.terminals[input.current_terminal];
 				if (!term_is_valid(terminal)) {
 					return -1;
