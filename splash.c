@@ -253,6 +253,11 @@ static void splash_clear_screen(splash_t *splash, uint32_t *video_buffer)
 
 	video_setmode(splash->video);
 
+	/* After the mode is set, there is nothing splash
+	 * needs master for
+	 */
+	video_release(splash->video);
+
 	bp = video_get_buffer_properties(splash->video);
 
 		for (j = 0; j < bp->height; j++) {
@@ -368,8 +373,6 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 	}
 
 
-	/* Let chrome know it's ok to take drmMaster */
-	video_release(splash->video);
 	(void)dbus_method_call0(splash->dbus,
 		kLibCrosServiceName,
 		kLibCrosServicePath,
