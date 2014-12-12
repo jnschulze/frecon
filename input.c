@@ -82,6 +82,7 @@ static void report_user_activity(int activity_type)
 static int input_special_key(struct input_key_event *ev)
 {
 	unsigned int i;
+	terminal_t *terminal;
 
 	uint32_t ignore_keys[] = {
 		BTN_TOUCH, // touchpad events
@@ -151,37 +152,25 @@ static int input_special_key(struct input_key_event *ev)
 	}
 
 	if (input.kbd_state.alt_state && input.kbd_state.control_state && ev->value) {
-		switch (ev->code) {
-			case KEY_F1:
+		if (ev->code == KEY_F1) {
+			terminal = input.terminals[input.current_terminal];
+			if (term_is_active(terminal)) {
 				input_ungrab();
-				input.terminals[input.current_terminal]->active = false;
+				terminal->active = false;
 				video_release(input.terminals[input.current_terminal]->video);
 				(void)dbus_method_call0(input.dbus,
 					kLibCrosServiceName,
 					kLibCrosServicePath,
 					kLibCrosServiceInterface,
 					kTakeDisplayOwnership);
-				break;
-			case KEY_F2:
-			case KEY_F3:
-			case KEY_F4:
-			case KEY_F5:
-			case KEY_F6:
-			case KEY_F7:
-			case KEY_F8:
-			case KEY_F9:
-			case KEY_F10:
-				(void)dbus_method_call0(input.dbus,
-					kLibCrosServiceName,
-					kLibCrosServicePath,
-					kLibCrosServiceInterface,
-					kReleaseDisplayOwnership);
-				break;
-		}
-
-		if ((ev->code >= KEY_F2) && (ev->code < KEY_F2 + MAX_TERMINALS)) {
-			terminal_t* terminal =
-				input.terminals[input.current_terminal];
+			}
+		} else if ((ev->code >= KEY_F2) && (ev->code < KEY_F2 + MAX_TERMINALS)) {
+			(void)dbus_method_call0(input.dbus,
+				kLibCrosServiceName,
+				kLibCrosServicePath,
+				kLibCrosServiceInterface,
+				kReleaseDisplayOwnership);
+			terminal = input.terminals[input.current_terminal];
 			if (term_is_active(terminal))
 					terminal->active = false;
 			input.current_terminal = ev->code - KEY_F2;
