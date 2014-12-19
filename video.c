@@ -138,11 +138,7 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources)
 	unsigned kConnectorPriority[] = {
 		DRM_MODE_CONNECTOR_LVDS,
 		DRM_MODE_CONNECTOR_eDP,
-		/*
-		 * XXX update the kernel headers to support DSI
-		 * see crbug.com/402127
-		 */
-		/* DRM_MODE_CONNECTOR_DSI, */
+		DRM_MODE_CONNECTOR_DSI,
 	};
 
 	drmModeConnector *main_monitor_connector = NULL;

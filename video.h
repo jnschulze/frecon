@@ -9,6 +9,14 @@
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+/*
+ * XXX Remove this when we update linux-headers
+ * See crbug.com/402127
+ */
+#ifndef DRM_MODE_CONNECTOR_DSI
+#define DRM_MODE_CONNECTOR_DSI 16
+#endif
+
 #include "dbus.h"
 #include "edid_utils.h"
 
