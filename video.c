@@ -408,6 +408,8 @@ void video_close(video_t *video)
 	if (!video)
 		return;
 
+	video_release(video);
+
 	destroy_dumb.handle = video->buffer_handle;
 	drmIoctl(video->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
 
