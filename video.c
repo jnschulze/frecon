@@ -444,12 +444,12 @@ uint32_t* video_lock(video_t *video)
 		video->lock.map =
 			mmap(0, video->buffer_properties.size, PROT_READ | PROT_WRITE,
 					MAP_SHARED, video->fd, video->lock.map_offset);
-		if (!video->lock.map) {
+		if (video->lock.map == MAP_FAILED) {
 			LOG(ERROR, "mmap failed");
 			return NULL;
 		}
-  }
-  return video->lock.map;
+	}
+	return video->lock.map;
 }
 
 void video_unlock(video_t *video)
