@@ -5,15 +5,16 @@
  */
 
 #include <drm_fourcc.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/mman.h>
+#include <time.h>
 #include <unistd.h>
-#include <fcntl.h>
+
 #include "util.h"
 #include "video.h"
 #include "dbus_interface.h"
@@ -377,8 +378,8 @@ video_t* video_init()
 		return NULL;
 	}
 
-	if (drmSetMaster(new_video->fd) != 0) {
-		LOG(ERROR, "video_init unable to get master");
+	if (!new_video->drm_resources) {
+		LOG(ERROR, "Unable to get mode resources");
 		goto fail;
 	}
 
@@ -463,10 +464,6 @@ video_t* video_init()
 	new_video->buffer_properties.pitch = pitch;
 	new_video->buffer_properties.scaling = scaling;
 
-	if (drmDropMaster(new_video->fd) != 0) {
-		LOG(WARNING, "video_init unable to drop master");
-	}
-
 	return new_video;
 
 fail:
@@ -479,10 +476,6 @@ fail:
 	if (new_video->crtc)
 		drmModeFreeCrtc(new_video->crtc);
 
-	if (drmDropMaster(new_video->fd) != 0) {
-		LOG(WARNING, "video_init unable to drop master");
-	}
-
 	if (new_video->fd >= 0)
 		drmClose(new_video->fd);
 
@@ -494,7 +487,10 @@ int32_t video_setmode(video_t* video)
 {
 	int32_t ret;
 
-	drmSetMaster(video->fd);
+	ret = drmSetMaster(video->fd);
+	if (ret)
+		LOG(ERROR, "drmSetMaster failed: %m");
+
 	ret = drmModeSetCrtc(video->fd, video->crtc->crtc_id,
 					 video->fb_id,
 					 0, 0,  // x,y

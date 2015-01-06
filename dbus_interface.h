@@ -44,4 +44,7 @@ static const char kLibCrosServiceInterface[] =
 static const char kTakeDisplayOwnership[] = "TakeDisplayOwnership";
 static const char kReleaseDisplayOwnership[] = "ReleaseDisplayOwnership";
 
+static const char kFreconDbusInterface[] = "org.chromium.frecon";
+static const char kFreconDbusPath[] = "/org/chromium/frecon";
+
 #endif // FRECON_DBUS_API_H_

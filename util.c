@@ -4,13 +4,15 @@
  * found in the LICENSE file.
  */
 
+#include <fcntl.h>
+#include <limits.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <pwd.h>
+#include <unistd.h>
 
 #include "util.h"
 
@@ -83,3 +85,81 @@ void LOG(int severity, const char* fmt, ...)
 	va_end(arg_list);
 	fprintf(stderr, "\n");
 }
+
+void parse_location(char* loc_str, int *x, int *y)
+{
+	int count = 0;
+	char* savedptr;
+	char* token;
+	char* str;
+	int *results[] = {x, y};
+	long tmp;
+
+	for (token = str = loc_str; token != NULL; str = NULL) {
+		if (count > 1)
+			break;
+
+		token = strtok_r(str, ",", &savedptr);
+		if (token) {
+			tmp = MIN(INT_MAX, strtol(token, NULL, 0));
+			*(results[count++]) = (int)tmp;
+		}
+	}
+}
+
+void parse_filespec(char* filespec, char *filename,
+		int32_t *offset_x, int32_t *offset_y, uint32_t *duration,
+		uint32_t default_duration, int32_t default_x, int32_t default_y)
+{
+	char* saved_ptr;
+	char* token;
+
+	// defaults
+	*offset_x = default_x;
+	*offset_y = default_y;
+	*duration = default_duration;
+
+	token = filespec;
+	token = strtok_r(token, ":", &saved_ptr);
+	if (token)
+		strcpy(filename, token);
+
+	LOG(ERROR, "image file: %s", filename);
+
+	token = strtok_r(NULL, ":", &saved_ptr);
+	if (token) {
+		*duration = strtoul(token, NULL, 0);
+		token = strtok_r(NULL, ",", &saved_ptr);
+		if (token) {
+			token = strtok_r(token, ",", &saved_ptr);
+			if (token) {
+				*offset_x = strtol(token, NULL, 0);
+				token = strtok_r(token, ",", &saved_ptr);
+				if (token)
+					*offset_y = strtol(token, NULL, 0);
+			}
+		}
+	}
+}
+
+void parse_image_option(char* optionstr, char** name, char** val)
+{
+	char** result[2] = { name, val };
+	int count = 0;
+	char* token;
+	char* str;
+	char* savedptr;
+
+	for (token = str = optionstr; token != NULL; str = NULL) {
+		if (count > 1)
+			break;
+
+		token = strtok_r(str, ":", &savedptr);
+		if (token) {
+			*(result[count]) = malloc(strlen(token) + 1);
+			strcpy(*(result[count]), token);
+			count++;
+		}
+	}
+}
+

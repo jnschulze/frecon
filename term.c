@@ -14,7 +14,6 @@
 #include "dbus_interface.h"
 #include "font.h"
 #include "input.h"
-#include "main.h"
 #include "shl_pty.h"
 #include "term.h"
 #include "util.h"
@@ -32,13 +31,27 @@ struct term {
 	uint32_t *dst_image;
 };
 
-static void __attribute__ ((noreturn)) term_run_child(unsigned int term_id)
+
+static char *interactive_cmd_line[] = {
+	"/sbin/agetty",
+	"-",
+	"9600",
+	"xterm",
+	NULL
+};
+
+
+static char *noninteractive_cmd_line[] = {
+	"/bin/cat",
+	NULL
+};
+
+
+static void __attribute__ ((noreturn)) term_run_child(terminal_t* terminal)
 {
-	printf("Welcome to frecon!\n");
-	printf("running %s\n", command_flags.exec[term_id][0]);
 	/* XXX figure out how to fix "top" for xterm-256color */
 	setenv("TERM", "xterm", 1);
-	execve(command_flags.exec[term_id][0], command_flags.exec[term_id], environ);
+	execve(terminal->exec[0], terminal->exec, environ);
 	exit(1);
 }
 
@@ -148,7 +161,7 @@ static void log_tsm(void *data, const char *file, int line, const char *fn,
 	fprintf(stderr, "\n");
 }
 
-terminal_t* term_init(unsigned int term_id)
+terminal_t* term_init(bool interactive)
 {
 	const int scrollback_size = 200;
 	uint32_t char_width, char_height;
@@ -170,6 +183,11 @@ terminal_t* term_init(unsigned int term_id)
 		term_close(new_terminal);
 		return NULL;
 	}
+
+	if (interactive)
+		new_terminal->exec = interactive_cmd_line;
+	else
+		new_terminal->exec = noninteractive_cmd_line;
 
 	font_init(video_getscaling(new_terminal->video));
 	font_get_size(&char_width, &char_height);
@@ -207,11 +225,12 @@ terminal_t* term_init(unsigned int term_id)
 	status = shl_pty_open(&new_terminal->term->pty,
 			term_read_cb, new_terminal, new_terminal->term->char_x,
 			new_terminal->term->char_y);
+
 	if (status < 0) {
 		term_close(new_terminal);
 		return NULL;
 	} else if (status == 0) {
-		term_run_child(term_id);
+		term_run_child(new_terminal);
 		exit(1);
 	}
 
@@ -238,11 +257,20 @@ terminal_t* term_init(unsigned int term_id)
 		term_close(new_terminal);
 		return NULL;
 	}
-	new_terminal->active = true;
-	video_setmode(new_terminal->video);
-	term_redraw(new_terminal);
+
+	if (interactive)
+		new_terminal->active = true;
 
 	return new_terminal;
+}
+
+void term_activate(terminal_t* terminal)
+{
+	input_grab();
+	input_set_current(terminal);
+	terminal->active = true;
+	video_setmode(terminal->video);
+	term_redraw(terminal);
 }
 
 void term_set_dbus(terminal_t *term, dbus_t* dbus)
@@ -349,4 +377,9 @@ void term_add_fd(terminal_t* terminal, fd_set* read_set, fd_set* exception_set)
 			FD_SET(terminal->term->pty_bridge, exception_set);
 		}
 	}
+}
+
+const char* term_get_ptsname(terminal_t* terminal)
+{
+	return ptsname(shl_pty_get_fd(terminal->term->pty));
 }

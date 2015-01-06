@@ -10,10 +10,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
 
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
+#define MIN(A, B) ((A) < (B) ? (A) : (B))
+
 #define ARRAY_SIZE(A) (sizeof(A)/sizeof(*(A)))
 
 #define  MS_PER_SEC             (1000LL)
@@ -30,6 +33,11 @@ inline int64_t get_monotonic_time_ms() {
 void LOG(int severity, const char* fmt, ...);
 void sync_lock(bool acquire);
 void daemonize();
+void parse_location(char* loc_str, int *x, int *y);
+void parse_filespec(char* filespec, char *filename,
+		int32_t *offset_x, int32_t *offset_y, uint32_t *duration,
+		uint32_t default_duration, int32_t default_x, int32_t default_y);
+void parse_image_option(char* optionstr, char** name, char** val);
 
 
 #define ERROR                 (1)

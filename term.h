@@ -11,13 +11,14 @@
 #include "input.h"
 
 typedef struct _terminal_t {
-  video_t  *video;
-  dbus_t   *dbus;
-  struct term *term;
-  bool active;
+	video_t     *video;
+	dbus_t      *dbus;
+	struct term *term;
+	bool         active;
+	char        **exec;
 } terminal_t;
 
-terminal_t *term_init(unsigned int term_id);
+terminal_t *term_init(bool interactive);
 void term_close(terminal_t* terminal);
 void term_redraw(terminal_t* terminal);
 void term_set_dbus(terminal_t* terminal, dbus_t* dbus);
@@ -35,6 +36,8 @@ int term_fd(terminal_t* terminal);
 void term_dispatch_io(terminal_t* terminal, fd_set* read_set);
 bool term_exception(terminal_t*, fd_set* exception_set);
 bool term_is_active(terminal_t*);
+void term_activate(terminal_t*);
 void term_add_fd(terminal_t* terminal, fd_set* read_set, fd_set* exception_set);
+const char* term_get_ptsname(terminal_t* terminal);
 
 #endif

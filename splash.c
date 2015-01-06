@@ -4,6 +4,7 @@
  * found in the LICENSE file.
  */
 
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -11,176 +12,38 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <fcntl.h>
 
-#include <math.h>
-#include <png.h>
-
-#include "util.h"
-#include "splash.h"
 #include "dbus_interface.h"
+#include "image.h"
+#include "splash.h"
+#include "util.h"
 
 #define  MAX_SPLASH_IMAGES      (30)
-#define  FILENAME_LENGTH        (100)
 #define  MAX_SPLASH_WAITTIME    (8)
-
-typedef union {
-	uint32_t  *as_pixels;
-	png_byte  *as_png_bytes;
-	char      *address;
-} splash_layout_t;
+#define  DBUS_WAIT_DELAY        (50000)
 
 typedef struct {
-	char            filename[FILENAME_LENGTH];
-	FILE           *fp;
-	splash_layout_t layout;
-	png_uint_32     width;
-	png_uint_32     height;
-	png_uint_32     pitch;
-} splash_image_t;
+	image_t    *image;
+	uint32_t    duration;
+} splash_frame_t;
 
 struct _splash_t {
 	video_t         *video;
 	int              num_images;
-	splash_image_t   images[MAX_SPLASH_IMAGES];
-	int              frame_interval;
+	splash_frame_t   image_frames[MAX_SPLASH_IMAGES];
 	uint32_t         clear;
 	bool             terminated;
 	bool             devmode;
 	dbus_t          *dbus;
+	int32_t          loop_start;
+	uint32_t         loop_duration;
+	uint32_t         default_duration;
+	int32_t          offset_x;
+	int32_t          offset_y;
+	int32_t          loop_offset_x;
+	int32_t          loop_offset_y;
 };
 
-static void splash_rgb(png_struct *png, png_row_info *row_info, png_byte *data)
-{
-	unsigned int i;
-
-	for (i = 0; i < row_info->rowbytes; i+= 4) {
-		uint8_t r, g, b, a;
-		uint32_t pixel;
-
-		r = data[i + 0];
-		g = data[i + 1];
-		b = data[i + 2];
-		a = data[i + 3];
-		pixel = (a << 24) | (r << 16) | (g << 8) | b;
-		memcpy(data + i, &pixel, sizeof(pixel));
-	}
-}
-
-static int splash_load_image_from_file(splash_t* splash, splash_image_t* image)
-{
-	png_struct   *png;
-	png_info     *info;
-	png_uint_32   width, height, pitch, row;
-	int           bpp, color_type, interlace_mthd;
-	png_byte    **rows;
-
-	if (image->fp != NULL)
-		return 1;
-
-	image->fp = fopen(image->filename, "rb");
-	if (image->fp == NULL)
-		return 1;
-
-	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	info = png_create_info_struct(png);
-
-	if (info == NULL)
-		return 1;
-
-	png_init_io(png, image->fp);
-
-	if (setjmp(png_jmpbuf(png)) != 0) {
-		fclose(image->fp);
-		return 1;
-	}
-
-	png_read_info(png, info);
-	png_get_IHDR(png, info, &width, &height, &bpp, &color_type,
-			&interlace_mthd, NULL, NULL);
-
-	pitch = 4 * width;
-
-	switch (color_type)
-	{
-		case PNG_COLOR_TYPE_PALETTE:
-			png_set_palette_to_rgb(png);
-			break;
-
-		case PNG_COLOR_TYPE_GRAY:
-		case PNG_COLOR_TYPE_GRAY_ALPHA:
-			png_set_gray_to_rgb(png);
-	}
-
-	if (png_get_valid(png, info, PNG_INFO_tRNS))
-		png_set_tRNS_to_alpha(png);
-
-	switch (bpp)
-	{
-		default:
-			if (bpp < 8)
-				png_set_packing(png);
-			break;
-		case 16:
-			png_set_strip_16(png);
-			break;
-	}
-
-	if (interlace_mthd != PNG_INTERLACE_NONE)
-		png_set_interlace_handling(png);
-
-	png_set_filler(png, 0xff, PNG_FILLER_AFTER);
-
-	png_set_read_user_transform_fn(png, splash_rgb);
-	png_read_update_info(png, info);
-
-	rows = malloc(height * sizeof(*rows));
-	image->layout.address = malloc(height * pitch);
-
-	for (row = 0; row < height; row++) {
-		rows[row] = &image->layout.as_png_bytes[row * pitch];
-	}
-
-	png_read_image(png, rows);
-	free(rows);
-
-	png_read_end(png, info);
-	fclose(image->fp);
-	png_destroy_read_struct(&png, &info, NULL);
-
-	image->width = width;
-	image->height = height;
-	image->pitch = pitch;
-
-	return 0;
-}
-
-static int splash_image_show(splash_t *splash,
-		splash_image_t* image,
-		uint32_t *video_buffer)
-{
-	uint32_t j;
-	uint32_t startx, starty;
-	buffer_properties_t *bp;
-	uint32_t *buffer;
-
-
-	bp = video_get_buffer_properties(splash->video);
-	startx = (bp->width - image->width) / 2;
-	starty = (bp->height - image->height) / 2;
-
-	buffer = video_lock(splash->video);
-
-	if (buffer != NULL) {
-		for (j = starty; j < starty + image->height; j++) {
-			memcpy(buffer + j * bp->pitch/4 + startx,
-					image->layout.address + (j - starty)*image->pitch, image->pitch);
-		}
-	}
-
-	video_unlock(splash->video);
-	return 0;
-}
 
 splash_t* splash_init()
 {
@@ -191,8 +54,10 @@ splash_t* splash_init()
 	if (splash == NULL)
 		return NULL;
 
-	splash->num_images = 0;
 	splash->video = video_init();
+	splash->loop_start = -1;
+	splash->default_duration = 25;
+	splash->loop_duration = 25;
 
 	cookie_fp = fopen("/tmp/display_info.bin", "wb");
 	if (cookie_fp) {
@@ -206,15 +71,11 @@ splash_t* splash_init()
 
 int splash_destroy(splash_t* splash)
 {
-	return 0;
-}
-
-int splash_set_frame_rate(splash_t *splash, int32_t rate)
-{
-	if (rate <= 0 || rate > 120)
-		return 1;
-
-	splash->frame_interval = rate;
+	if (splash->video) {
+		video_close(splash->video);
+		splash->video = NULL;
+	}
+	free(splash);
 	return 0;
 }
 
@@ -224,13 +85,31 @@ int splash_set_clear(splash_t *splash, int32_t clear_color)
 	return 0;
 }
 
-int splash_add_image(splash_t* splash, const char* filename)
+int splash_add_image(splash_t* splash, char* filespec)
 {
+	image_t* image;
+	int32_t offset_x, offset_y;
+	char *filename;
+	uint32_t duration;
 	if (splash->num_images >= MAX_SPLASH_IMAGES)
 		return 1;
 
-	strcpy(splash->images[splash->num_images].filename, filename);
+	filename = (char*)malloc(strlen(filespec) + 1);
+	parse_filespec(filespec,
+			filename,
+			&offset_x, &offset_y, &duration,
+			splash->default_duration,
+			splash->offset_x,
+			splash->offset_y);
+
+	image = image_create();
+	image_set_filename(image, filename);
+	image_set_offset(image, offset_x, offset_y);
+	splash->image_frames[splash->num_images].image = image;
+	splash->image_frames[splash->num_images].duration = duration;
 	splash->num_images++;
+
+	free(filename);
 	return 0;
 }
 
@@ -261,6 +140,8 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 	struct timespec sleep_spec;
 	int fd;
 	int num_written;
+	image_t* image;
+	uint32_t duration;
 
 	status = 0;
 
@@ -272,15 +153,20 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		splash_clear_screen(splash, video_buffer);
 		last_show_ms = -1;
 		for (i = 0; i < splash->num_images; i++) {
-			status = splash_load_image_from_file(splash, &splash->images[i]);
+			image = splash->image_frames[i].image;
+			status = image_load_image_from_file(image);
 			if (status != 0) {
-				LOG(WARNING, "splash_load_image_from_file failed: %d\n", status);
+				LOG(WARNING, "image_load_image_from_file failed: %d", status);
 				break;
 			}
 
 			now_ms = get_monotonic_time_ms();
 			if (last_show_ms > 0) {
-				sleep_ms = splash->frame_interval - (now_ms - last_show_ms);
+				if (splash->loop_start >= 0 && i >= splash->loop_start)
+					duration = splash->loop_duration;
+				else
+					duration = splash->image_frames[i].duration;
+				sleep_ms = duration - (now_ms - last_show_ms);
 				if (sleep_ms > 0) {
 					sleep_spec.tv_sec = sleep_ms / MS_PER_SEC;
 					sleep_spec.tv_nsec = (sleep_ms % MS_PER_SEC) * NS_PER_MS;
@@ -290,28 +176,47 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 
 			now_ms = get_monotonic_time_ms();
 
-			status = splash_image_show(splash, &splash->images[i], video_buffer);
+			if (i >= splash->loop_start) {
+				image_set_offset(image,
+						splash->loop_offset_x,
+						splash->loop_offset_y);
+			}
+
+			status = image_show(image, splash->video);
 			if (status != 0) {
-				LOG(WARNING, "splash_image_show failed: %d", status);
+				LOG(WARNING, "image_show failed: %d", status);
 				break;
 			}
 			last_show_ms = now_ms;
+
+			if ((splash->loop_start >= 0) &&
+					(splash->loop_start < splash->num_images)) {
+				if (i == splash->num_images - 1)
+					i = splash->loop_start - 1;
+			}
+
+			image_release(image);
 		}
 		video_unlock(splash->video);
+
+		for (i = 0; i < splash->num_images; i++) {
+			image_destroy(splash->image_frames[i].image);
+		}
 
 		/*
 		 * Now Chrome can take over
 		 */
 		video_release(splash->video);
 		sync_lock(false);
+		video_unlock(splash->video);
 
-
-		do {
-			*dbus = dbus_init();
-			usleep(50000);
-		} while (*dbus == NULL);
-
-		splash_set_dbus(splash, *dbus);
+		if (dbus != NULL) {
+			do {
+				*dbus = dbus_init();
+				usleep(DBUS_WAIT_DELAY);
+			} while (*dbus == NULL);
+			splash_set_dbus(splash, *dbus);
+		}
 
 		if (splash->devmode) {
 			/*
@@ -344,12 +249,13 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		}
 	}
 
-
-	(void)dbus_method_call0(splash->dbus,
-		kLibCrosServiceName,
-		kLibCrosServicePath,
-		kLibCrosServiceInterface,
-		kTakeDisplayOwnership);
+	if (splash->dbus) {
+		(void)dbus_method_call0(splash->dbus,
+			kLibCrosServiceName,
+			kLibCrosServicePath,
+			kLibCrosServiceInterface,
+			kTakeDisplayOwnership);
+	}
 
 	/*
 	 * Finally, wait until chrome has drawn on top of the splash.  In dev mode,
@@ -359,12 +265,56 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 	return status;
 }
 
+void splash_set_offset(splash_t* splash, int32_t x, int32_t y)
+{
+	if (splash) {
+		splash->offset_x = x;
+		splash->offset_y = y;
+	}
+}
+
 void splash_set_dbus(splash_t* splash, dbus_t* dbus)
 {
-	splash->dbus = dbus;
+	if (splash)
+		splash->dbus = dbus;
 }
 
 void splash_set_devmode(splash_t* splash)
 {
-	splash->devmode = true;
+	if (splash)
+		splash->devmode = true;
+}
+
+int splash_num_images(splash_t *splash)
+{
+	if (splash)
+		return splash->num_images;
+
+	return 0;
+}
+
+void splash_set_default_duration(splash_t* splash, uint32_t duration)
+{
+	if (splash)
+		splash->default_duration = duration;
+}
+
+void splash_set_loop_start(splash_t* splash, int32_t loop_start)
+{
+	if (splash)
+		splash->loop_start = loop_start;
+}
+
+void splash_set_loop_duration(splash_t* splash, uint32_t duration)
+{
+	if (splash)
+		splash->loop_duration = duration;
+}
+
+void splash_set_loop_offset(splash_t* splash, int32_t x, int32_t y)
+{
+	if (splash) {
+		splash->loop_offset_x = x;
+		splash->loop_offset_y = y;
+	}
 }

@@ -8,6 +8,7 @@
 #define INPUT_H
 
 #include <linux/input.h>
+
 #include "dbus.h"
 #include "term.h"
 #include "video.h"
@@ -27,5 +28,8 @@ struct input_key_event *input_get_event(fd_set *read_fds, fd_set *exception_set)
 void input_put_event(struct input_key_event *event);
 void input_grab();
 void input_ungrab();
+terminal_t* input_create_term(int vt);
+void input_set_current(terminal_t* terminal);
+unsigned int input_get_maxterminals();
 
 #endif

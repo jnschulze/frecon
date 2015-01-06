@@ -6,11 +6,25 @@
 
 #include <stdlib.h>
 #include "dbus.h"
+
+#include "dbus_interface.h"
+#include "image.h"
+#include "input.h"
+#include "term.h"
 #include "util.h"
+
+#define COMMAND_MAKE_VT               "MakeVT"
+#define COMMAND_SWITCH_VT             "SwitchVT"
+#define COMMAND_TERMINATE             "Terminate"
+#define COMMAND_IMAGE                 "Image"
+
+#define DBUS_DEFAULT_DELAY             3000
 
 struct _dbus_t {
 	DBusConnection *conn;
 	int terminate;
+	DBusWatch *watch;
+	int fd;
 	struct {
 		DBusObjectPathVTable vtable;
 		const char* interface;
@@ -21,20 +35,286 @@ struct _dbus_t {
 	} signal;
 };
 
+static DBusHandlerResult
+_handle_switchvt(DBusConnection *connection, DBusMessage *message)
+{
+	DBusMessage *reply;
+	DBusMessage *msg;
+	DBusError error;
+	dbus_bool_t stat;
+	terminal_t *terminal;
+	unsigned int vt;
+
+	dbus_error_init(&error);
+	stat = dbus_message_get_args(message, &error, DBUS_TYPE_UINT32,
+			&vt, DBUS_TYPE_INVALID);
+
+	if (!stat) {
+		LOG(ERROR, "SwitchVT method error, no VT argument");
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
+
+	if (vt > input_get_maxterminals()) {
+		LOG(ERROR, "SwtichVT: invalid terminal");
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
+
+	if (vt == 0) {
+		terminal = input_create_term(vt);
+		if (term_is_active(terminal)) {
+			input_ungrab();
+			terminal->active = false;
+			video_release(terminal->video);
+			msg = dbus_message_new_method_call(
+				kLibCrosServiceName,
+				kLibCrosServicePath,
+				kLibCrosServiceInterface,
+				kTakeDisplayOwnership);
+			dbus_connection_send_with_reply_and_block(connection, msg,
+					DBUS_DEFAULT_DELAY, NULL);
+		}
+		reply = dbus_message_new_method_return(message);
+		dbus_connection_send(connection, reply, NULL);
+		return DBUS_HANDLER_RESULT_HANDLED;
+	} else {
+		/*
+		 * If we are switching to a new term, and if a
+		 * given term is active, then de-activate the
+		 * current terminal
+		 */
+		terminal = input_create_term(0);
+		if (term_is_active(terminal))
+			terminal->active = false;
+
+		terminal = input_create_term(vt);
+		if (term_is_valid(terminal)) {
+			msg = dbus_message_new_method_call(
+				kLibCrosServiceName,
+				kLibCrosServicePath,
+				kLibCrosServiceInterface,
+				kReleaseDisplayOwnership);
+			dbus_connection_send_with_reply_and_block(connection, msg,
+					DBUS_DEFAULT_DELAY, NULL);
+			term_activate(terminal);
+
+			reply = dbus_message_new_method_return(message);
+			dbus_connection_send(connection, reply, NULL);
+			return DBUS_HANDLER_RESULT_HANDLED;
+		}
+	}
+
+	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
+static DBusHandlerResult
+_handle_makevt(DBusConnection *connection, DBusMessage *message)
+{
+	DBusMessage *reply;
+	DBusError error;
+	dbus_bool_t stat;
+	terminal_t *terminal;
+	unsigned int vt;
+	const char *reply_str;
+
+	dbus_error_init(&error);
+	stat = dbus_message_get_args(message, &error, DBUS_TYPE_UINT32,
+			&vt, DBUS_TYPE_INVALID);
+
+	if (!stat) {
+		LOG(ERROR, "SwitchVT method error, not VT argument");
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
+
+	if ((vt < 1) || (vt > input_get_maxterminals())) {
+		LOG(ERROR, "SwtichVT: invalid terminal");
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
+
+	terminal = input_create_term(vt);
+	reply_str = term_get_ptsname(terminal);
+
+	reply = dbus_message_new_method_return(message);
+	dbus_message_append_args(reply,
+			DBUS_TYPE_STRING, &reply_str,
+			DBUS_TYPE_INVALID);
+	dbus_connection_send(connection, reply, NULL);
+
+	return DBUS_HANDLER_RESULT_HANDLED;
+}
+
+static DBusHandlerResult
+_handle_terminate(DBusConnection *connection, DBusMessage *message)
+{
+	DBusMessage *reply;
+
+	reply = dbus_message_new_method_return(message);
+	dbus_connection_send(connection, reply, NULL);
+	exit(EXIT_SUCCESS);
+}
+
+
+#define NUM_IMAGE_PARAMETERS     (2)
+static DBusHandlerResult
+_handle_image(DBusConnection *connection, DBusMessage *message)
+{
+	DBusMessage *reply;
+	DBusError error;
+	dbus_bool_t stat;
+	terminal_t *terminal;
+	image_t *image;
+	int i;
+	int x, y;
+	char* option[NUM_IMAGE_PARAMETERS];
+	char* optname;
+	char* optval;
+	int status;
+
+	dbus_error_init(&error);
+	stat = dbus_message_get_args(message, &error,
+			DBUS_TYPE_STRING, &option[0],
+			DBUS_TYPE_STRING, &option[1],
+			DBUS_TYPE_INVALID);
+
+	image = image_create();
+	if (image == NULL) {
+		LOG(WARNING, "failed to create image");
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
+
+	if (stat) {
+		for (i = 0; i < NUM_IMAGE_PARAMETERS; i++) {
+			optname = NULL;
+			optval = NULL;
+			parse_image_option(option[i], &optname, &optval);
+			if (strncmp(optname, "image", strlen("image")) == 0) {
+				image_set_filename(image, optval);
+			} else if (strncmp(optname, "location", strlen("location")) == 0) {
+				parse_location(optval, &x, &y);
+				image_set_location(image, x, y);
+			} else if (strncmp(optname, "offset", strlen("offset")) == 0) {
+				parse_location(optval, &x, &y);
+				image_set_offset(image, x, y);
+			}
+			if (optname)
+				free(optname);
+			if (optval)
+				free(optval);
+		}
+	} else {
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
+
+	status = image_load_image_from_file(image);
+	if (status != 0) {
+		LOG(WARNING, "image_load_image_from_file failed: %d", status);
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
+
+	terminal = input_create_term(0);
+	if (!terminal)
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+	image_show(image, terminal->video);
+	image_release(image);
+
+	reply = dbus_message_new_method_return(message);
+	dbus_connection_send(connection, reply, NULL);
+
+	return DBUS_HANDLER_RESULT_HANDLED;
+}
+
+static void
+_frecon_dbus_unregister(DBusConnection *connection, void* user_data)
+{
+}
+
+
+static DBusHandlerResult
+_frecon_dbus_message_handler(DBusConnection *connection, DBusMessage *message, void* user_data)
+{
+	if (dbus_message_is_method_call(message,
+				kFreconDbusInterface, COMMAND_SWITCH_VT)) {
+		return _handle_switchvt(connection, message);
+	} else if (dbus_message_is_method_call(message,
+				kFreconDbusInterface, COMMAND_MAKE_VT)) {
+		return _handle_makevt(connection, message);
+	}
+	else if (dbus_message_is_method_call(message,
+				kFreconDbusInterface, COMMAND_TERMINATE)) {
+		return _handle_terminate(connection, message);
+	} else if (dbus_message_is_method_call(message,
+				kFreconDbusInterface, COMMAND_IMAGE)) {
+		return _handle_image(connection, message);
+	}
+
+	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+}
+
+static DBusObjectPathVTable
+frecon_vtable = {
+	_frecon_dbus_unregister,
+	_frecon_dbus_message_handler,
+	NULL
+};
+
+dbus_bool_t add_watch(DBusWatch *w, void* data)
+{
+	dbus_t *dbus = (dbus_t*)data;
+	dbus->watch = w;
+
+	return TRUE;
+}
+
+void remove_watch(DBusWatch *w, void* data)
+{
+}
+
+void toggle_watch(DBusWatch *w, void* data)
+{
+}
+
 dbus_t* dbus_init()
 {
 	dbus_t* new_dbus;
 	DBusError err;
+	int result;
+	dbus_bool_t stat;
 
 	dbus_error_init(&err);
 
 	new_dbus = (dbus_t*)calloc(1, sizeof(*new_dbus));
+	new_dbus->fd = -1;
 
 	new_dbus->conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
 	if (dbus_error_is_set(&err)) {
 		LOG(ERROR, "Cannot get dbus connection");
 		free(new_dbus);
 		return NULL;
+	}
+
+	result = dbus_bus_request_name(new_dbus->conn, kFreconDbusInterface,
+			DBUS_NAME_FLAG_DO_NOT_QUEUE, &err);
+
+	if (result <= 0) {
+		LOG(ERROR, "Unable to get name for server");
+	}
+
+	stat = dbus_connection_register_object_path(new_dbus->conn,
+			kFreconDbusPath,
+			&frecon_vtable,
+			NULL);
+
+	if (!stat) {
+		LOG(ERROR, "failed to register object path");
+	}
+
+	stat = dbus_connection_set_watch_functions(new_dbus->conn,
+			add_watch, remove_watch, toggle_watch,
+			new_dbus, NULL);
+
+	if (!stat) {
+		LOG(ERROR, "Failed to set watch functions");
 	}
 
 	dbus_connection_set_exit_on_disconnect(new_dbus->conn, FALSE);
@@ -56,7 +336,7 @@ bool dbus_method_call0(dbus_t* dbus, const char* service_name,
 		return false;
 
 	if (!dbus_connection_send_with_reply_and_block(dbus->conn,
-				msg, 3000, NULL)) {
+				msg, DBUS_DEFAULT_DELAY, NULL)) {
 		dbus_message_unref(msg);
 		return false;
 	}
@@ -86,7 +366,7 @@ bool dbus_method_call1(dbus_t* dbus, const char* service_name,
 	}
 
 	if (!dbus_connection_send_with_reply_and_block(dbus->conn,
-				msg, 3000, NULL)) {
+				msg, DBUS_DEFAULT_DELAY, NULL)) {
 		dbus_message_unref(msg);
 		return false;
 	}
@@ -148,34 +428,6 @@ bool dbus_signal_match_handler(
 	return true;
 }
 
-
-int dbus_wait_for_messages(dbus_t *dbus, int64_t timeout_ms)
-{
-	int ret = DBUS_STATUS_NOERROR;
-	int64_t terminate_ms = -1;
-	if (timeout_ms > 0)
-		terminate_ms = get_monotonic_time_ms() + timeout_ms;
-
-	while (dbus_connection_read_write_dispatch(dbus->conn, -1)) {
-		if ((terminate_ms > 0) && (get_monotonic_time_ms() > terminate_ms)) {
-			dbus->terminate = true;
-			ret = DBUS_STATUS_TIMEOUT;
-		}
-
-		if (dbus->terminate)
-			break;
-	}
-
-	return ret;
-}
-
-
-void dbus_stop_wait(dbus_t* dbus)
-{
-	dbus->terminate = true;
-}
-
-
 void dbus_destroy(dbus_t* dbus)
 {
 	/* FIXME - not sure what the right counterpart to
@@ -183,5 +435,35 @@ void dbus_destroy(dbus_t* dbus)
 		unclear. Not a big issue but it would be nice to
 		clean up properly here */
 	/* dbus_connection_unref(dbus->conn); */
-	free(dbus);
+	if (dbus)
+		free(dbus);
+}
+
+void dbus_add_fd(dbus_t* dbus, fd_set* read_set, fd_set* exception_set)
+{
+	if (dbus->fd < 0)
+		dbus->fd = dbus_watch_get_unix_fd(dbus->watch);
+
+	if (dbus->fd >= 0) {
+		FD_SET(dbus->fd, read_set);
+		FD_SET(dbus->fd, exception_set);
+	}
+}
+
+int dbus_get_fd(dbus_t* dbus)
+{
+	if (dbus->fd < 0)
+		dbus->fd = dbus_watch_get_unix_fd(dbus->watch);
+
+	return dbus->fd;
+}
+
+
+void dbus_dispatch_io(dbus_t* dbus)
+{
+	dbus_watch_handle(dbus->watch, DBUS_WATCH_READABLE);
+	while (dbus_connection_get_dispatch_status(dbus->conn)
+			== DBUS_DISPATCH_DATA_REMAINS) {
+		dbus_connection_dispatch(dbus->conn);
+	}
 }
