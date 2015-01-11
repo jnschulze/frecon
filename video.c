@@ -23,8 +23,14 @@
 
 static int kms_open()
 {
-	const char *module_list[] = { "cirrus", "exynos", "i915", "rockchip",
-							"tegra" };
+	const char *module_list[] = {
+		"cirrus",
+		"exynos",
+		"i915",
+		"msm",
+		"rockchip",
+		"tegra",
+	};
 	int fd = -1;
 	unsigned i;
 
