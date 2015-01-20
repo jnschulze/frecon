@@ -500,24 +500,28 @@ int input_run(bool standalone)
 		if (term_exception(terminal, &exception_set))
 			return -1;
 
-		struct input_key_event *event;
-		event = input_get_event(&read_set, &exception_set);
-		if (event) {
-			if (!input_special_key(event) && event->value) {
-				uint32_t keysym, unicode;
-				if (term_is_active(terminal)) {
-					// Only report user activity when the terminal is active
-					report_user_activity(USER_ACTIVITY_OTHER);
-					input_get_keysym_and_unicode(
-						event, &keysym, &unicode);
-					term_key_event(terminal,
-							keysym, unicode);
+		if (term_is_active(terminal)) {
+			struct input_key_event *event;
+			event = input_get_event(&read_set, &exception_set);
+			if (event) {
+				if (!input_special_key(event) && event->value) {
+					uint32_t keysym, unicode;
+					// current_terminal can possibly change during
+					// execution of input_special_key
+					terminal = input.terminals[input.current_terminal];
+					if (term_is_active(terminal)) {
+						// Only report user activity when the terminal is active
+						report_user_activity(USER_ACTIVITY_OTHER);
+						input_get_keysym_and_unicode(
+							event, &keysym, &unicode);
+						term_key_event(terminal,
+								keysym, unicode);
+					}
 				}
+
+				input_put_event(event);
 			}
-
-			input_put_event(event);
 		}
-
 
 		term_dispatch_io(terminal, &read_set);
 
