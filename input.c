@@ -101,6 +101,8 @@ static int input_special_key(struct input_key_event *ev)
 		BTN_TASK
 	};
 
+	terminal = input.terminals[input.current_terminal];
+
 	for (i = 0; i < ARRAY_SIZE(ignore_keys); i++)
 		if (ev->code == ignore_keys[i])
 			return 1;
@@ -123,37 +125,61 @@ static int input_special_key(struct input_key_event *ev)
 		return 1;
 	}
 
-	if (input.kbd_state.shift_state && ev->value) {
-		switch (ev->code) {
-		case KEY_PAGEUP:
-			term_page_up(input.terminals[input.current_terminal]);
-			return 1;
-		case KEY_PAGEDOWN:
-			term_page_down(input.terminals[input.current_terminal]);
-			return 1;
-		case KEY_UP:
-			term_line_up(input.terminals[input.current_terminal]);
-			return 1;
-		case KEY_DOWN:
-			term_line_down(input.terminals[input.current_terminal]);
-			return 1;
-		}
-	}
-
-	if (input.kbd_state.search_state && ev->value) {
-		switch (ev->code) {
-			case KEY_UP:
+	if (term_is_active(terminal)) {
+		if (input.kbd_state.shift_state && ev->value) {
+			switch (ev->code) {
+			case KEY_PAGEUP:
 				term_page_up(input.terminals[input.current_terminal]);
 				return 1;
-			case KEY_DOWN:
+			case KEY_PAGEDOWN:
 				term_page_down(input.terminals[input.current_terminal]);
 				return 1;
+			case KEY_UP:
+				term_line_up(input.terminals[input.current_terminal]);
+				return 1;
+			case KEY_DOWN:
+				term_line_down(input.terminals[input.current_terminal]);
+				return 1;
+			}
+		}
+
+		if (input.kbd_state.search_state && ev->value) {
+			switch (ev->code) {
+				case KEY_UP:
+					term_page_up(input.terminals[input.current_terminal]);
+					return 1;
+				case KEY_DOWN:
+					term_page_down(input.terminals[input.current_terminal]);
+					return 1;
+			}
+		}
+
+		if (!(input.kbd_state.search_state || input.kbd_state.alt_state ||
+					input.kbd_state.control_state) &&
+				ev->value && (ev->code >= KEY_F1) && (ev->code <= KEY_F10)) {
+			switch (ev->code) {
+				case KEY_F1:
+				case KEY_F2:
+				case KEY_F3:
+				case KEY_F4:
+				case KEY_F5:
+					break;
+				case KEY_F6:
+				case KEY_F7:
+					report_user_activity(USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS -
+							(ev->code - KEY_F6));
+					break;
+				case KEY_F8:
+				case KEY_F9:
+				case KEY_F10:
+					break;
+			}
+			return 1;
 		}
 	}
 
 	if (input.kbd_state.alt_state && input.kbd_state.control_state && ev->value) {
 		if (ev->code == KEY_F1) {
-			terminal = input.terminals[input.current_terminal];
 			if (term_is_active(terminal)) {
 				input_ungrab();
 				terminal->active = false;
@@ -170,7 +196,6 @@ static int input_special_key(struct input_key_event *ev)
 				kLibCrosServicePath,
 				kLibCrosServiceInterface,
 				kReleaseDisplayOwnership);
-			terminal = input.terminals[input.current_terminal];
 			if (term_is_active(terminal))
 					terminal->active = false;
 			input.current_terminal = ev->code - KEY_F2;
@@ -193,28 +218,6 @@ static int input_special_key(struct input_key_event *ev)
 
 		return 1;
 
-	}
-
-	if ((!input.kbd_state.search_state) && ev->value &&
-		(ev->code >= KEY_F1) && (ev->code <= KEY_F10)) {
-		switch (ev->code) {
-			case KEY_F1:
-			case KEY_F2:
-			case KEY_F3:
-			case KEY_F4:
-			case KEY_F5:
-				break;
-			case KEY_F6:
-			case KEY_F7:
-				report_user_activity(USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS -
-						(ev->code - KEY_F6));
-				break;
-			case KEY_F8:
-			case KEY_F9:
-			case KEY_F10:
-				break;
-		}
-		return 1;
 	}
 
 	return 0;
@@ -500,27 +503,24 @@ int input_run(bool standalone)
 		if (term_exception(terminal, &exception_set))
 			return -1;
 
-		if (term_is_active(terminal)) {
-			struct input_key_event *event;
-			event = input_get_event(&read_set, &exception_set);
-			if (event) {
-				if (!input_special_key(event) && event->value) {
-					uint32_t keysym, unicode;
-					// current_terminal can possibly change during
-					// execution of input_special_key
-					terminal = input.terminals[input.current_terminal];
-					if (term_is_active(terminal)) {
-						// Only report user activity when the terminal is active
-						report_user_activity(USER_ACTIVITY_OTHER);
-						input_get_keysym_and_unicode(
-							event, &keysym, &unicode);
-						term_key_event(terminal,
-								keysym, unicode);
-					}
+		struct input_key_event *event;
+		event = input_get_event(&read_set, &exception_set);
+		if (event) {
+			if (!input_special_key(event) && event->value) {
+				uint32_t keysym, unicode;
+				// current_terminal can possibly change during
+				// execution of input_special_key
+				terminal = input.terminals[input.current_terminal];
+				if (term_is_active(terminal)) {
+					// Only report user activity when the terminal is active
+					report_user_activity(USER_ACTIVITY_OTHER);
+					input_get_keysym_and_unicode(
+						event, &keysym, &unicode);
+					term_key_event(terminal,
+							keysym, unicode);
 				}
-
-				input_put_event(event);
 			}
+			input_put_event(event);
 		}
 
 		term_dispatch_io(terminal, &read_set);
