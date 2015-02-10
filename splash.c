@@ -22,7 +22,7 @@
 
 #define  MAX_SPLASH_IMAGES      (30)
 #define  FILENAME_LENGTH        (100)
-#define  MAX_SPLASH_WAITTIME    (5000)
+#define  MAX_SPLASH_WAITTIME    (5)
 
 typedef union {
 	uint32_t  *as_pixels;
@@ -234,18 +234,6 @@ int splash_add_image(splash_t* splash, const char* filename)
 	return 0;
 }
 
-static void
-frecon_dbus_path_message_func(dbus_t* dbus, void* user_data)
-{
-	splash_t* splash = (splash_t*)user_data;
-
-	if (!splash->devmode)
-		exit(EXIT_SUCCESS);
-
-	dbus_stop_wait(dbus);
-	video_close(splash->video);
-}
-
 static void splash_clear_screen(splash_t *splash, uint32_t *video_buffer)
 {
 	int i,j;
@@ -272,14 +260,12 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 	int i;
 	uint32_t* video_buffer;
 	int status;
-	bool db_status;
 	int64_t last_show_ms;
 	int64_t now_ms;
 	int64_t sleep_ms;
 	struct timespec sleep_spec;
 	int fd;
 	int num_written;
-	int wfm_status;
 
 	status = 0;
 
@@ -318,35 +304,12 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		}
 		video_unlock(splash->video);
 
-		/*
-		 * Next wait until chrome has drawn on top of the splash.  In dev mode,
-		 * dbus_wait_for_messages will return when chrome is visible.  In
-		 * verified mode, the frecon app will exit before dbus_wait_for_messages
-		 * returns
-		 */
 		do {
 			*dbus = dbus_init();
 			usleep(50000);
 		} while (*dbus == NULL);
 
 		splash_set_dbus(splash, *dbus);
-
-		db_status = dbus_signal_match_handler(*dbus,
-				kLoginPromptVisibleSignal,
-				kSessionManagerServicePath,
-				kSessionManagerInterface,
-				kLoginPromptVisiibleRule,
-				frecon_dbus_path_message_func, splash);
-
-		if (db_status) {
-			wfm_status = dbus_wait_for_messages(*dbus, MAX_SPLASH_WAITTIME);
-			switch (wfm_status) {
-				case DBUS_STATUS_TIMEOUT:
-					LOG(WARNING, "timed out waiting for messages\n");
-					break;
-			}
-		}
-
 
 		if (splash->devmode) {
 			/*
@@ -378,6 +341,12 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		kLibCrosServicePath,
 		kLibCrosServiceInterface,
 		kTakeDisplayOwnership);
+
+	/*
+	 * Finally, wait until chrome has drawn on top of the splash.  In dev mode,
+	 * wait a few seconds for chrome to show up.
+	 */
+	sleep(MAX_SPLASH_WAITTIME);
 	return status;
 }
 
