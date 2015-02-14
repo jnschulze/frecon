@@ -241,11 +241,6 @@ static void splash_clear_screen(splash_t *splash, uint32_t *video_buffer)
 
 	video_setmode(splash->video);
 
-	/* After the mode is set, there is nothing splash
-	 * needs master for
-	 */
-	video_release(splash->video);
-
 	bp = video_get_buffer_properties(splash->video);
 
 		for (j = 0; j < bp->height; j++) {
@@ -303,6 +298,12 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 			last_show_ms = now_ms;
 		}
 		video_unlock(splash->video);
+
+		/*
+		 * Now Chrome can take over
+		 */
+		video_release(splash->video);
+
 
 		do {
 			*dbus = dbus_init();
