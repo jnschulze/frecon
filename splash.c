@@ -22,7 +22,7 @@
 
 #define  MAX_SPLASH_IMAGES      (30)
 #define  FILENAME_LENGTH        (100)
-#define  MAX_SPLASH_WAITTIME    (5)
+#define  MAX_SPLASH_WAITTIME    (8)
 
 typedef union {
 	uint32_t  *as_pixels;
@@ -332,6 +332,13 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 			} else {
 				LOG(ERROR, "unable to open drm_master_relax");
 			}
+		} else {
+			/*
+			 * Below, we will wait for Chrome to appear above the splash
+			 * image.  If we are not in dev mode, wait and then exit
+			 */
+			sleep(MAX_SPLASH_WAITTIME);
+			exit(EXIT_SUCCESS);
 		}
 	}
 
