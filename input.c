@@ -55,11 +55,12 @@ struct {
 
 static void report_user_activity(int activity_type)
 {
+	dbus_bool_t allow_off = false;
 	dbus_method_call1(input.dbus, kPowerManagerServiceName,
 			kPowerManagerServicePath,
 			kPowerManagerInterface,
 			kHandleUserActivityMethod,
-			&activity_type);
+			DBUS_TYPE_INT32, &activity_type);
 
 	switch (activity_type) {
 		case USER_ACTIVITY_BRIGHTNESS_UP_KEY_PRESS:
@@ -70,11 +71,17 @@ static void report_user_activity(int activity_type)
 					kIncreaseScreenBrightnessMethod);
 				break;
 		case USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS:
-				(void)dbus_method_call0(input.dbus,
+				/*
+				 * Shouldn't allow the screen to go
+				 * completely off while frecon is active
+				 * so passing false to allow_off
+				 */
+				(void)dbus_method_call1(input.dbus,
 					kPowerManagerServiceName,
 					kPowerManagerServicePath,
 					kPowerManagerInterface,
-					kDecreaseScreenBrightnessMethod);
+					kDecreaseScreenBrightnessMethod,
+					DBUS_TYPE_BOOLEAN, &allow_off);
 				break;
 	}
 }

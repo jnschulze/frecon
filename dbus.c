@@ -69,7 +69,7 @@ bool dbus_method_call0(dbus_t* dbus, const char* service_name,
 
 bool dbus_method_call1(dbus_t* dbus, const char* service_name,
 		const char* service_path, const char* service_interface,
-		const char* method, int* param)
+		const char* method, int arg_type, void* param)
 {
 	DBusMessage *msg = NULL;
 
@@ -80,7 +80,7 @@ bool dbus_method_call1(dbus_t* dbus, const char* service_name,
 		return false;
 
 	if (!dbus_message_append_args(msg,
-				DBUS_TYPE_INT32, param, DBUS_TYPE_INVALID)) {
+				arg_type, param, DBUS_TYPE_INVALID)) {
 		dbus_message_unref(msg);
 		return false;
 	}

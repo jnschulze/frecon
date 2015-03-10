@@ -25,7 +25,7 @@ bool dbus_method_call0(dbus_t* dbus, const char* service_name,
     const char* method);
 bool dbus_method_call1(dbus_t* dbus, const char* service_name,
     const char* service_path, const char* service_interface,
-    const char* method, int* param);
+    const char* method, int arg_type, void* param);
 bool dbus_signal_match_handler(
     dbus_t* dbus,
     const char* signal,
