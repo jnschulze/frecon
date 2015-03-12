@@ -186,6 +186,13 @@ static int input_special_key(struct input_key_event *ev)
 	}
 
 	if (input.kbd_state.alt_state && input.kbd_state.control_state && ev->value) {
+		/*
+		 * Special case for key sequence that is used by external program.   Just
+		 * explicitly ignore here and do nothing.
+		 */
+		if (input.kbd_state.shift_state)
+			return 1;
+
 		if (ev->code == KEY_F1) {
 			if (term_is_active(terminal)) {
 				input_ungrab();
