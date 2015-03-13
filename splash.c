@@ -298,6 +298,7 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 			last_show_ms = now_ms;
 		}
 		video_unlock(splash->video);
+		sync_lock(false);
 
 		/*
 		 * Now Chrome can take over

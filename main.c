@@ -71,6 +71,8 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
+	sync_lock(true);
+
 	for (i = 0; i < MAX_TERMINALS; i++)
 		command_flags.exec[i] = default_cmd_line;
 

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <time.h>
 
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
@@ -27,6 +28,7 @@ inline int64_t get_monotonic_time_ms() {
 }
 
 void LOG(int severity, const char* fmt, ...);
+void sync_lock(bool acquire);
 void daemonize();
 
 
