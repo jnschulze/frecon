@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <fcntl.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <pwd.h>
 
@@ -16,12 +16,13 @@
 
 void sync_lock(bool acquire)
 {
-	int lock;
+	static int lock = -1;
 	int stat;
-	struct flock flock;
 	struct passwd* pw;
 
-	lock = open("/run/frecon", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+	if (lock < 0)
+		lock = open("/run/frecon", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+
 	if (lock >= 0) {
 		pw = getpwnam("chronos");
 		if (pw) {
@@ -30,13 +31,7 @@ void sync_lock(bool acquire)
 				LOG(ERROR, "fchown returned %d", stat);
 		}
 
-		memset(&flock, 0, sizeof(flock));
-		flock.l_type = acquire ? F_WRLCK : F_UNLCK;
-		flock.l_whence = SEEK_SET;
-		flock.l_start = 0;
-		flock.l_len = 0;
-		stat = fcntl(lock, F_SETLK, &flock);
-		if (stat < 0)
+		if (flock(lock, acquire ? LOCK_EX : LOCK_UN) < 0)
 			LOG(ERROR, "Failed to operate on synch_lock(acquire = %d):%d, lock=%d: %m",
 					acquire, stat, lock);
 	}
