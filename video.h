@@ -46,6 +46,7 @@ gamma_ramp_t g_gamma_ramp;
 
 typedef struct {
 	int    fd;
+	drmVersion          driver_version;
 	buffer_properties_t buffer_properties;
 	video_lock_t        lock;
 	drmModeRes         *drm_resources;

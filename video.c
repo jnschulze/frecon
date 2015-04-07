@@ -14,32 +14,74 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
-
 #include "util.h"
 #include "video.h"
 #include "dbus_interface.h"
 #include "dbus.h"
 
 
-static int kms_open()
+static int kms_open(video_t *video)
 {
-	const char *module_list[] = {
-		"cirrus",
-		"exynos",
-		"i915",
-		"msm",
-		"rockchip",
-		"tegra",
-	};
-	int fd = -1;
+	int fd;
 	unsigned i;
+	char* dev_name;
+	drmModeRes *res = NULL;
+	int ret;
+	drmVersionPtr version;
 
-	for (i = 0; i < ARRAY_SIZE(module_list); i++) {
-		fd = drmOpen(module_list[i], NULL);
-		if (fd >= 0)
+	for (i = 0; i < DRM_MAX_MINOR; i++) {
+		ret = asprintf(&dev_name, DRM_DEV_NAME, DRM_DIR_NAME, i);
+		if (ret < 0)
+			continue;
+
+		LOG(INFO, "trying %s", dev_name);
+		fd = open(dev_name, O_RDWR, 0);
+		free(dev_name);
+		if (fd < 0)
+			continue;
+
+		res = drmModeGetResources(fd);
+		if (!res) {
+			LOG(ERROR, "Unable to get resources for card%d", i);
+			continue;
+		}
+
+		if (res->count_crtcs > 0 && res->count_connectors > 0)
 			break;
+
+		drmModeFreeResources(res);
+		res = NULL;
 	}
 
+	if (fd < 0 || res == NULL)
+		return -1;
+
+	video->drm_resources = res;
+	version = drmGetVersion(fd);
+	if (version) {
+		video->driver_version.version_major = version->version_major;
+		video->driver_version.version_minor = version->version_minor;
+		video->driver_version.version_patchlevel = version->version_patchlevel;
+		video->driver_version.name_len = version->name_len;
+		video->driver_version.date_len = version->date_len;
+		video->driver_version.desc_len = version->desc_len;
+
+		video->driver_version.name = (char*)malloc(version->name_len + 1);
+		video->driver_version.date = (char*)malloc(version->date_len + 1);
+		video->driver_version.desc = (char*)malloc(version->desc_len + 1);
+
+		strcpy(video->driver_version.name, version->name);
+		strcpy(video->driver_version.date, version->date);
+		strcpy(video->driver_version.desc, version->desc);
+		drmFreeVersion(version);
+		LOG(INFO, 
+				"Frecon using drm driver %s, version %d.%d, date(%s), desc(%s)",
+				video->driver_version.name,
+				video->driver_version.version_major,
+				video->driver_version.version_minor,
+				video->driver_version.date,
+				video->driver_version.desc);
+	}
 	return fd;
 }
 
@@ -271,9 +313,7 @@ video_t* video_init()
 	uint32_t selected_mode;
 	video_t *new_video = (video_t*)calloc(1, sizeof(video_t));
 
-	new_video->fd = -1;
-
-	new_video->fd = kms_open();
+	new_video->fd = kms_open(new_video);
 
 	if (new_video->fd < 0) {
 		LOG(ERROR, "Unable to open a KMS module");
@@ -282,12 +322,6 @@ video_t* video_init()
 
 	if (drmSetMaster(new_video->fd) != 0) {
 		LOG(ERROR, "video_init unable to get master");
-	}
-
-	new_video->drm_resources = drmModeGetResources(new_video->fd);
-	if (!new_video->drm_resources) {
-		LOG(ERROR, "Unable to get mode resources");
-		goto fail;
 	}
 
 	new_video->main_monitor_connector = find_main_monitor(new_video->fd,
@@ -404,7 +438,7 @@ int32_t video_setmode(video_t* video)
 					 &video->crtc->mode); // mode
 
 	if (ret) {
-		LOG(ERROR, "Unable to set crtc");
+		LOG(ERROR, "Unable to set crtc: %m");
 		goto done;
 	}
 
@@ -435,6 +469,15 @@ void video_close(video_t *video)
 
 	destroy_dumb.handle = video->buffer_handle;
 	drmIoctl(video->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
+
+	if (video->driver_version.name)
+		free(video->driver_version.name);
+
+	if (video->driver_version.date)
+		free(video->driver_version.date);
+
+	if (video->driver_version.desc)
+		free(video->driver_version.desc);
 
 	if (video->fd >= 0) {
 		if (video->main_monitor_connector) {
