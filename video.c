@@ -19,6 +19,24 @@
 #include "dbus_interface.h"
 #include "dbus.h"
 
+static drmModeConnector *find_first_connected_connector(int fd,
+							 drmModeRes *resources)
+{
+	int i;
+	for (i = 0; i < resources->count_connectors; i++) {
+		drmModeConnector *connector;
+
+		connector = drmModeGetConnector(fd, resources->connectors[i]);
+		if (connector) {
+			if ((connector->count_modes > 0) &&
+					(connector->connection == DRM_MODE_CONNECTED))
+				return connector;
+
+			drmModeFreeConnector(connector);
+		}
+	}
+	return NULL;
+}
 
 static int kms_open(video_t *video)
 {
@@ -46,8 +64,10 @@ static int kms_open(video_t *video)
 			continue;
 		}
 
-		if (res->count_crtcs > 0 && res->count_connectors > 0)
-			break;
+		if (res->count_crtcs > 0 && res->count_connectors > 0) {
+			if (find_first_connected_connector(fd, res))
+				break;
+		}
 
 		drmModeFreeResources(res);
 		res = NULL;
@@ -125,21 +145,6 @@ static drmModeCrtc *find_crtc_for_connector(int fd,
 	return NULL;
 }
 
-static bool is_connector_used(int fd,
-						drmModeRes *resources,
-						drmModeConnector *connector)
-{
-	bool result = false;
-	drmModeCrtc *crtc = find_crtc_for_connector(fd, resources, connector);
-
-	if (crtc) {
-		result = crtc->buffer_id != 0;
-		drmModeFreeCrtc(crtc);
-	}
-
-	return result;
-}
-
 static drmModeConnector *find_used_connector_by_type(int fd,
 								 drmModeRes *resources,
 								 unsigned type)
@@ -153,25 +158,6 @@ static drmModeConnector *find_used_connector_by_type(int fd,
 			if ((connector->connector_type == type) &&
 					(connector->connection == DRM_MODE_CONNECTED) &&
 					(connector->count_modes > 0))
-				return connector;
-
-			drmModeFreeConnector(connector);
-		}
-	}
-	return NULL;
-}
-
-static drmModeConnector *find_first_used_connector(int fd,
-							 drmModeRes *resources)
-{
-	int i;
-	for (i = 0; i < resources->count_connectors; i++) {
-		drmModeConnector *connector;
-
-		connector = drmModeGetConnector(fd, resources->connectors[i]);
-		if (connector) {
-			if ((connector->count_modes > 0) &&
-					is_connector_used(fd, resources, connector))
 				return connector;
 
 			drmModeFreeConnector(connector);
@@ -203,11 +189,17 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
 	} while (!main_monitor_connector && i < ARRAY_SIZE(kConnectorPriority));
 
 	/*
-	 * If we didn't find a connector, grab the first one in use.
+	 * If we didn't find a connector, grab the first one that is connected.
 	 */
 	if (!main_monitor_connector)
 		main_monitor_connector =
-				find_first_used_connector(fd, resources);
+				find_first_connected_connector(fd, resources);
+
+	/*
+	 * If we still didn't find a connector, give up and return.
+	 */
+	if (!main_monitor_connector)
+		return NULL;
 
 	*mode_index = 0;
 	for (modes = 0; modes < main_monitor_connector->count_modes; modes++) {
@@ -523,13 +515,16 @@ uint32_t* video_lock(video_t *video)
 
 void video_unlock(video_t *video)
 {
-	/* XXX Cache flush maybe? */
 	if (video->lock.count > 0) {
 		video->lock.count--;
 	}
 
 	if (video->lock.count == 0) {
+		struct drm_clip_rect clip_rect = {
+			0, 0, video->buffer_properties.width, video->buffer_properties.height
+		};
 		munmap(video->lock.map, video->buffer_properties.size);
+		drmModeDirtyFB(video->fd, video->fb_id, &clip_rect, 1);
 	}
 }
 
