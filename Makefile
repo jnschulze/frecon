@@ -11,8 +11,13 @@ PC_LIBS := $(shell $(PKG_CONFIG) --libs $(PC_DEPS))
 CPPFLAGS += -std=c99 -D_GNU_SOURCE=1
 CFLAGS += -Wall -Wsign-compare -Wpointer-arith -Wcast-qual -Wcast-align
 
-CPPFLAGS += $(PC_CFLAGS)
+CPPFLAGS += $(PC_CFLAGS) -I$(OUT)
 LDLIBS += $(PC_LIBS)
+
+$(OUT)glyphs.h: $(SRC)/font_to_c.py $(SRC)/ter-u16n.bdf
+	python2 $(SRC)/font_to_c.py $(SRC)/ter-u16n.bdf $(OUT)glyphs.h
+
+font.o.depends: $(OUT)glyphs.h
 
 CC_BINARY(frecon): $(C_OBJECTS)
 
