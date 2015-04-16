@@ -61,6 +61,7 @@ static int kms_open(video_t *video)
 		res = drmModeGetResources(fd);
 		if (!res) {
 			LOG(ERROR, "Unable to get resources for card%d", i);
+			drmClose(fd);
 			continue;
 		}
 
@@ -69,6 +70,7 @@ static int kms_open(video_t *video)
 				break;
 		}
 
+		drmClose(fd);
 		drmModeFreeResources(res);
 		res = NULL;
 	}
@@ -377,6 +379,7 @@ video_t* video_init()
 
 	if (drmSetMaster(new_video->fd) != 0) {
 		LOG(ERROR, "video_init unable to get master");
+		goto fail;
 	}
 
 	new_video->main_monitor_connector = find_main_monitor(new_video->fd,
