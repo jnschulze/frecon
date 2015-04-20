@@ -1,0 +1,6 @@
+frecon: the Freon Console
+
+This is a terminal emulator that replaces the kernel Virtual Terminal (VT)
+console.  It uses the Kernel Mode Setting (KMS) support in the kernel.  It
+is similar to the kmscon project:
+	http://www.freedesktop.org/wiki/Software/kmscon
