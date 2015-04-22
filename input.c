@@ -463,7 +463,16 @@ struct input_key_event *input_get_event(fd_set * read_set,
 		    && !FD_ISSET(input.devs[u].fd, exception_set)) {
 			ret =
 			    read(input.devs[u].fd, &ev, sizeof (struct input_event));
-			if (ret < (int) sizeof (struct input_event)) {
+			if (ret < 0) {
+				if (errno == EINTR || errno == EAGAIN)
+					continue;
+				if (errno != ENODEV) {
+					LOG(ERROR, "read: %s: %s", input.devs[u].path,
+						strerror(errno));
+				}
+				input_remove(input.devs[u].path);
+				return NULL;
+			} else if (ret < (int) sizeof (struct input_event)) {
 				LOG(ERROR, "expected %d bytes, got %d",
 				       (int) sizeof (struct input_event), ret);
 				return NULL;
