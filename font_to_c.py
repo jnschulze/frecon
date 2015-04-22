@@ -83,7 +83,7 @@ class GlyphSet(object):
 
     breaks.append((None, len(sorted_glyphs)))
 
-    out_file.write('static int32_t code_point_to_glpyh_index(uint32_t cp)\n{\n')
+    out_file.write('static int32_t code_point_to_glyph_index(uint32_t cp)\n{\n')
     for break_idx, (this_break_code_point,
                     this_break_glyph_index) in enumerate(breaks[:-1]):
       this_break_code_point, this_break_glyph_index = breaks[break_idx]

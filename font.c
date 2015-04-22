@@ -44,9 +44,9 @@ void font_render(uint32_t *dst_pointer, int dst_char_x, int dst_char_y,
 	int dst_x = dst_char_x * GLYPH_WIDTH * font_scaling;
 	int dst_y = dst_char_y * GLYPH_HEIGHT * font_scaling;
 
-	int32_t glyph_index = code_point_to_glpyh_index(ch);
+	int32_t glyph_index = code_point_to_glyph_index(ch);
 	if (glyph_index < 0) {
-		glyph_index = code_point_to_glpyh_index(
+		glyph_index = code_point_to_glyph_index(
 			UNICODE_REPLACEMENT_CHARACTER_CODE_POINT);
 		if (glyph_index < 0) {
 			return;
