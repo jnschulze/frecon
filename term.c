@@ -293,6 +293,7 @@ void term_close(terminal_t *term)
 		term->term = NULL;
 	}
 
+	font_free();
 	free(term);
 }
 
