@@ -33,35 +33,52 @@ static uint8_t glyph_pixel(const uint8_t *glyph, int x, int y)
 	return get_bit(&glyph[y * GLYPH_BYTES_PER_ROW], x);
 }
 
-static uint8_t scale_pixel(uint8_t neighbors, int sx, int sy, int scaling)
+static uint8_t scale_pixel(uint32_t neighbors, int sx, int sy, int scaling)
 {
 	/*
-	 * Scale a pixel by a factor of |scaling| using the following rules:
+	 * Scale a pixel by a factor of |scaling|, based on the colors of the
+	 *   center pixel and the eight neighbor pixels on a 3x3 grid:
 	 * If the center pixel is 1, always return 1;
 	 * If the center pixel is 0:
-	 *   Return 0 if all four neighbor pixels are 1;
-	 *   Otherwise, return 1 if two adjacent neighbor pixels are 1, and
+	 *   Return 0 if all four side pixels (up, down, left, right) are 1;
+	 *   Otherwise, return 1 if two adjacent side pixels are 1, and
 	 *     (sx, sy) falls inside the isosceles right triangle adjoining
-	 *     these two neighbor pixels and with legs of length |scaling - 1|.
+	 *     these two neighbor pixels and with legs of length |scaling - 1|,
+	 *     and either the corner pixel next to both side pixels is 0, or
+	 *     the other two corner pixels next to these side pixels are both 0.
 	 */
-	return ((neighbors & 0x1) ||
-		(neighbors != 0x1e &&
-		((sy < sx && (neighbors & 0xc) == 0xc) ||
-		(sx < sy && (neighbors & 0x12) == 0x12) ||
-		(sx + sy > scaling - 1 && (neighbors & 0x14) == 0x14) ||
-		(sx + sy < scaling - 1 && (neighbors & 0xa) == 0xa))));
+	return ((neighbors & 0x10) ||
+		((neighbors & 0xaa) != 0xaa &&
+		((sx < sy &&
+			(neighbors & 0x22) == 0x22 &&
+			((neighbors & 0x4) == 0x0 ||
+			(neighbors & 0x105) == 0x4)) ||
+		(sy < sx &&
+			(neighbors & 0x88) == 0x88 &&
+			((neighbors & 0x40) == 0x0 ||
+			(neighbors & 0x141) == 0x40)) ||
+		(sx + sy > scaling - 1 &&
+			(neighbors & 0x0a) == 0x0a &&
+			((neighbors & 0x1) == 0x0 ||
+			(neighbors & 0x45) == 0x1)) ||
+		(sx + sy < scaling - 1 &&
+			(neighbors & 0xa0) == 0xa0 &&
+			((neighbors & 0x100) == 0x0 ||
+			(neighbors & 0x144) == 0x100)))));
 }
 
 static void scale_glyph(uint8_t *dst, const uint8_t *src, int scaling)
 {
 	for (int y = 0; y < GLYPH_HEIGHT; y++) {
 		for (int x = 0; x < GLYPH_WIDTH; x++) {
-			uint8_t neighbors =
-				glyph_pixel(src, x, y) |
-				(glyph_pixel(src, x - 1, y) << 1) |
-				(glyph_pixel(src, x + 1, y) << 2) |
-				(glyph_pixel(src, x, y - 1) << 3) |
-				(glyph_pixel(src, x, y + 1) << 4);
+			uint32_t neighbors = 0;
+			for (int dy = -1; dy <= 1; dy++) {
+				for (int dx = -1; dx <= 1; dx++) {
+					neighbors <<= 1;
+					neighbors |= glyph_pixel(
+						src, x + dx, y + dy);
+				}
+			}
 			for (int sy = 0; sy < scaling; sy++) {
 				uint8_t *dst_row = &dst[(y * scaling + sy) *
 					GLYPH_BYTES_PER_ROW * scaling];
