@@ -62,9 +62,7 @@ _handle_switchvt(DBusConnection *connection, DBusMessage *message)
 	if (vt == 0) {
 		terminal = input_create_term(vt);
 		if (term_is_active(terminal)) {
-			input_ungrab();
-			terminal->active = false;
-			video_release(terminal->video);
+			term_deactivate(terminal);
 			msg = dbus_message_new_method_call(
 				kLibCrosServiceName,
 				kLibCrosServicePath,
@@ -84,7 +82,7 @@ _handle_switchvt(DBusConnection *connection, DBusMessage *message)
 		 */
 		terminal = input_create_term(0);
 		if (term_is_active(terminal))
-			terminal->active = false;
+			term_deactivate(terminal);
 
 		terminal = input_create_term(vt);
 		if (term_is_valid(terminal)) {
@@ -201,26 +199,34 @@ _handle_image(DBusConnection *connection, DBusMessage *message)
 				free(optval);
 		}
 	} else {
-		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+		goto fail;
 	}
 
 	status = image_load_image_from_file(image);
 	if (status != 0) {
 		LOG(WARNING, "image_load_image_from_file failed: %d", status);
-		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+		goto fail;
 	}
 
 	terminal = input_create_term(0);
 	if (!terminal)
-		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+		goto fail;
 
-	image_show(image, terminal->video);
+	status = term_show_image(terminal, image);
+	if (status != 0) {
+		LOG(WARNING, "term_show_image failed: %d", status);
+		goto fail;
+	}
 	image_release(image);
 
 	reply = dbus_message_new_method_return(message);
 	dbus_connection_send(connection, reply, NULL);
 
 	return DBUS_HANDLER_RESULT_HANDLED;
+fail:
+	if (image)
+		image_release(image);
+	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
 static void

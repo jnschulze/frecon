@@ -100,8 +100,6 @@ void parse_filespec(char* filespec, char *filename,
 	if (token)
 		strcpy(filename, token);
 
-	LOG(ERROR, "image file: %s", filename);
-
 	token = strtok_r(NULL, ":", &saved_ptr);
 	if (token) {
 		*duration = strtoul(token, NULL, 0);

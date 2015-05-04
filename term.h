@@ -7,18 +7,11 @@
 #ifndef TERM_H
 #define TERM_H
 
+#include "image.h"
 #include "video.h"
-#include "input.h"
 
-typedef struct _terminal_t {
-	video_t     *video;
-	dbus_t      *dbus;
-	struct term *term;
-	bool         active;
-	char        **exec;
-} terminal_t;
-
-terminal_t *term_init(bool interactive);
+typedef struct _terminal_t terminal_t;
+terminal_t *term_init(bool interactive, video_t* video);
 void term_close(terminal_t* terminal);
 void term_redraw(terminal_t* terminal);
 void term_set_dbus(terminal_t* terminal, dbus_t* dbus);
@@ -37,7 +30,13 @@ void term_dispatch_io(terminal_t* terminal, fd_set* read_set);
 bool term_exception(terminal_t*, fd_set* exception_set);
 bool term_is_active(terminal_t*);
 void term_activate(terminal_t*);
+void term_deactivate(terminal_t* terminal);
 void term_add_fd(terminal_t* terminal, fd_set* read_set, fd_set* exception_set);
 const char* term_get_ptsname(terminal_t* terminal);
+void term_set_background(terminal_t* term, uint32_t bg);
+int term_show_image(terminal_t* terminal, image_t* image);
+void term_write_message(terminal_t* terminal, char* message);
+void term_hide_cursor(terminal_t* terminal);
+void term_show_cursor(terminal_t* terminal);
 
 #endif

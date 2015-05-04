@@ -31,6 +31,16 @@ struct term {
 	uint32_t *dst_image;
 };
 
+struct _terminal_t {
+	uint32_t     background;
+	bool         background_valid;
+	video_t     *video;
+	dbus_t      *dbus;
+	struct term *term;
+	bool         active;
+	char        **exec;
+};
+
 
 static char *interactive_cmd_line[] = {
 	"/sbin/agetty",
@@ -64,12 +74,29 @@ static int term_draw_cell(struct tsm_screen *screen, uint32_t id,
 {
 	terminal_t *terminal = (terminal_t*)data;
 	uint32_t front_color, back_color;
+	uint8_t br, bb, bg;
+	uint32_t Y;
 
 	if (age && terminal->term->age && age <= terminal->term->age)
 		return 0;
 
-	front_color = (attr->fr << 16) | (attr->fg << 8) | attr->fb;
-	back_color = (attr->br << 16) | (attr->bg << 8) | attr->bb;
+	if (terminal->background_valid) {
+		br = (terminal->background >> 16) & 0xFF;
+		bg = (terminal->background >> 8) & 0xFF;
+		bb = (terminal->background) & 0xFF;
+		Y = (3*br + bb + 4*bg) >> 3;
+
+		if (Y > 128) {
+			front_color = 0;
+			back_color = terminal->background;
+		} else {
+			front_color = (attr->fr << 16) | (attr->fg << 8) | attr->fb;
+			back_color = terminal->background;
+		}
+	} else {
+			front_color = (attr->fr << 16) | (attr->fg << 8) | attr->fb;
+			back_color = (attr->br << 16) | (attr->bg << 8) | attr->bb;
+	}
 
 	if (attr->inverse) {
 		uint32_t tmp = front_color;
@@ -161,7 +188,7 @@ static void log_tsm(void *data, const char *file, int line, const char *fn,
 	fprintf(stderr, "\n");
 }
 
-terminal_t* term_init(bool interactive)
+terminal_t* term_init(bool interactive, video_t* video)
 {
 	const int scrollback_size = 200;
 	uint32_t char_width, char_height;
@@ -172,7 +199,13 @@ terminal_t* term_init(bool interactive)
 	if (!new_terminal)
 		return NULL;
 
-	new_terminal->video = video_init();
+	new_terminal->background_valid = false;
+
+	if (video)
+		new_terminal->video = video;
+	else
+		new_terminal->video = video_init();
+
 	if (!new_terminal->video) {
 		term_close(new_terminal);
 		return NULL;
@@ -273,6 +306,16 @@ void term_activate(terminal_t* terminal)
 	term_redraw(terminal);
 }
 
+void term_deactivate(terminal_t* terminal)
+{
+	if (!terminal->active)
+		return;
+
+	input_ungrab();
+	terminal->active = false;
+	video_release(terminal->video);
+}
+
 void term_set_dbus(terminal_t *term, dbus_t* dbus)
 {
 	term->dbus = dbus;
@@ -303,6 +346,9 @@ bool term_is_child_done(terminal_t* terminal)
 	int ret;
 	ret = waitpid(terminal->term->pid, &status, WNOHANG);
 
+	if ((ret == -1) && (errno == ECHILD)) {
+		return false;
+	}
 	return ret != 0;
 }
 
@@ -383,4 +429,36 @@ void term_add_fd(terminal_t* terminal, fd_set* read_set, fd_set* exception_set)
 const char* term_get_ptsname(terminal_t* terminal)
 {
 	return ptsname(shl_pty_get_fd(terminal->term->pty));
+}
+
+void term_set_background(terminal_t* terminal, uint32_t bg)
+{
+	terminal->background = bg;
+	terminal->background_valid = true;
+}
+
+int term_show_image(terminal_t* terminal, image_t* image)
+{
+	return image_show(image, terminal->video);
+}
+
+void term_write_message(terminal_t* terminal, char* message)
+{
+	FILE *fp;
+
+	fp = fopen(term_get_ptsname(terminal), "w");
+	if (fp) {
+		fputs(message, fp);
+		fclose(fp);
+	}
+}
+
+void term_hide_cursor(terminal_t* terminal)
+{
+	term_write_message(terminal, "\033[?25l");
+}
+
+void term_show_cursor(terminal_t* terminal)
+{
+	term_write_message(terminal, "\033[?25h");
 }
