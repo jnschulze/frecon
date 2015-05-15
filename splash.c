@@ -207,7 +207,6 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		 * Now Chrome can take over
 		 */
 		video_release(splash->video);
-		sync_lock(false);
 		video_unlock(splash->video);
 
 		if (dbus != NULL) {

@@ -16,30 +16,6 @@
 
 #include "util.h"
 
-void sync_lock(bool acquire)
-{
-	static int lock = -1;
-	int stat;
-	struct passwd* pw;
-
-	if (lock < 0)
-		lock = open("/run/frecon", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
-
-	if (lock >= 0) {
-		pw = getpwnam("chronos");
-		if (pw) {
-			stat = fchown(lock, pw->pw_uid, pw->pw_gid);
-			if (stat != 0)
-				LOG(ERROR, "fchown returned %d", stat);
-		}
-
-		if (flock(lock, acquire ? LOCK_EX : LOCK_UN) < 0)
-			LOG(ERROR, "Failed to operate on synch_lock(acquire = %d):%d, lock=%d: %m",
-					acquire, stat, lock);
-	}
-}
-
-
 void daemonize()
 {
 	pid_t pid;

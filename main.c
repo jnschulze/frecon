@@ -85,7 +85,6 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	sync_lock(true);
 	splash = splash_init();
 	if (splash == NULL) {
 		LOG(ERROR, "splash init failed");
