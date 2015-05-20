@@ -50,7 +50,6 @@ typedef struct {
 	uint32_t fb_id;
 
 	gamma_ramp_t gamma_ramp;
-	char internal_panel;
 	char edid[EDID_SIZE];
 } video_t;
 

@@ -400,14 +400,6 @@ video_t* video_init()
 				blob_ptr = drmModeGetPropertyBlob(new_video->fd,
 					new_video->main_monitor_connector->prop_values[i]);
 				if (blob_ptr) {
-					switch (new_video->main_monitor_connector->connector_type) {
-						case DRM_MODE_CONNECTOR_LVDS:
-						case DRM_MODE_CONNECTOR_eDP:
-							new_video->internal_panel = 1;
-							break;
-						default:
-							new_video->internal_panel = 0;
-					}
 					memcpy(&new_video->edid, blob_ptr->data, EDID_SIZE);
 					drmModeFreePropertyBlob(blob_ptr);
 					edid_found = true;
