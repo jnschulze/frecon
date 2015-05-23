@@ -151,6 +151,9 @@ int main(int argc, char* argv[])
 	dbus = NULL;
 	if (command_flags.print_resolution) {
 		video = video_init();
+		if (!video)
+			return EXIT_FAILURE;
+
 		printf("%d %d", video_getwidth(video), video_getheight(video));
 		return EXIT_SUCCESS;
 	}
@@ -161,8 +164,8 @@ int main(int argc, char* argv[])
 	if (splash_num_images(splash) > 0) {
 		ret = splash_run(splash, &dbus);
 		if (ret) {
-				LOG(ERROR, "splash_run failed: %d", ret);
-				return EXIT_FAILURE;
+			LOG(ERROR, "splash_run failed: %d", ret);
+			return EXIT_FAILURE;
 		}
 	}
 	splash_destroy(splash);

@@ -57,6 +57,11 @@ splash_t* splash_init()
 		return NULL;
 
 	splash->video = video_init();
+	if (!splash->video) {
+		free(splash);
+		return NULL;
+	}
+
 	splash->terminal = input_create_splash_term(splash->video);
 	splash->loop_start = -1;
 	splash->default_duration = 25;
