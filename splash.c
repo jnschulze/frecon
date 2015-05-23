@@ -219,16 +219,6 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		 * Now set drm_master_relax so that we can transfer drm_master between
 		 * chrome and frecon
 		 */
-		video_release(splash->video);
-		video_unlock(splash->video);
-
-		if (dbus != NULL) {
-			do {
-				*dbus = dbus_init();
-				usleep(DBUS_WAIT_DELAY);
-			} while (*dbus == NULL);
-			splash_set_dbus(splash, *dbus);
-		}
 		fd = open("/sys/kernel/debug/dri/drm_master_relax", O_WRONLY);
 		if (fd != -1) {
 			num_written = write(fd, "Y", 1);
