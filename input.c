@@ -39,6 +39,18 @@ struct keyboard_state {
 	int search_state;
 };
 
+/*
+ * structure to keep input state:
+ *  udev - for udev events.
+ *  udev_monitor - used to listen for udev events.
+ *  udev_fd - to poll for udev messages.
+ *  ndevs - number of input devices.
+ *  devs - input devices to listen to.
+ *  kbd_state - tracks modifier keys that are pressed.
+ *  dbus - where to send dbus events.
+ *  current_terminal - the currently selected terminal.
+ *  terminals - list of all terminals that have been created.
+ */
 struct {
 	struct udev *udev;
 	struct udev_monitor *udev_monitor;
