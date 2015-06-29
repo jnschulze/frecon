@@ -300,17 +300,6 @@ static int input_add(const char *devname)
 	if (fd < 0)
 		goto errorret;
 
-	ret = ioctl(fd, EVIOCGRAB, (void *) 1);
-
-	if (!ret) {
-		ioctl(fd, EVIOCGRAB, (void *) 0);
-	} else {
-		LOG(ERROR, "Evdev device %s grabbed by another process",
-			devname);
-		ret = -EBUSY;
-		goto closefd;
-	}
-
 	struct input_dev *newdevs =
 	    realloc(input.devs, (input.ndevs + 1) * sizeof (struct input_dev));
 	if (!newdevs) {
@@ -620,9 +609,6 @@ int input_run(bool standalone)
 		input.terminals[input.current_terminal] = term_init(true, NULL);
 		terminal = input.terminals[input.current_terminal];
 		term_activate(terminal);
-		if (term_is_valid(terminal)) {
-			input_grab();
-		}
 	}
 
 	while (1) {
@@ -639,22 +625,6 @@ int input_run(bool standalone)
 void input_put_event(struct input_key_event *event)
 {
 	free(event);
-}
-
-void input_grab()
-{
-	unsigned int i;
-	for (i = 0; i < input.ndevs; i++) {
-		(void)ioctl(input.devs[i].fd, EVIOCGRAB, (void *) 1);
-	}
-}
-
-void input_ungrab()
-{
-	unsigned int i;
-	for (i = 0; i < input.ndevs; i++) {
-		(void)ioctl(input.devs[i].fd, EVIOCGRAB, (void*) 0);
-	}
 }
 
 terminal_t* input_create_term(int vt)

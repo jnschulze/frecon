@@ -198,7 +198,6 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 	}
 
 	input_set_current(NULL);
-	input_ungrab();
 
 	/*
 	 * Now Chrome can take over

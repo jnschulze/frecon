@@ -299,7 +299,6 @@ terminal_t* term_init(bool interactive, video_t* video)
 
 void term_activate(terminal_t* terminal)
 {
-	input_grab();
 	input_set_current(terminal);
 	terminal->active = true;
 	video_setmode(terminal->video);
@@ -311,7 +310,6 @@ void term_deactivate(terminal_t* terminal)
 	if (!terminal->active)
 		return;
 
-	input_ungrab();
 	terminal->active = false;
 	video_release(terminal->video);
 }
