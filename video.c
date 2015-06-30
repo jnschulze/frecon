@@ -21,7 +21,7 @@
 #include "dbus.h"
 
 static drmModeConnector *find_first_connected_connector(int fd,
-							 drmModeRes *resources)
+							drmModeRes *resources)
 {
 	int i;
 	for (i = 0; i < resources->count_connectors; i++) {
@@ -109,8 +109,8 @@ static int kms_open(video_t *video)
 }
 
 static drmModeCrtc *find_crtc_for_connector(int fd,
-							drmModeRes *resources,
-							drmModeConnector *connector)
+					    drmModeRes *resources,
+					    drmModeConnector *connector)
 {
 	int i, j;
 	drmModeEncoder *encoder;
@@ -149,8 +149,8 @@ static drmModeCrtc *find_crtc_for_connector(int fd,
 }
 
 static drmModeConnector *find_used_connector_by_type(int fd,
-								 drmModeRes *resources,
-								 unsigned type)
+						     drmModeRes *resources,
+						     unsigned type)
 {
 	int i;
 	for (i = 0; i < resources->count_connectors; i++) {
@@ -170,7 +170,7 @@ static drmModeConnector *find_used_connector_by_type(int fd,
 }
 
 static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
-		uint32_t *mode_index)
+					   uint32_t *mode_index)
 {
 	unsigned i = 0;
 	int modes;
@@ -186,8 +186,8 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
 	drmModeConnector *main_monitor_connector = NULL;
 	do {
 		main_monitor_connector = find_used_connector_by_type(fd,
-										 resources,
-										 kConnectorPriority[i]);
+								     resources,
+								     kConnectorPriority[i]);
 		i++;
 	} while (!main_monitor_connector && i < ARRAY_SIZE(kConnectorPriority));
 
@@ -217,8 +217,8 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
 }
 
 static void disable_crtc(int fd,
-						drmModeRes *resources,
-						drmModeCrtc *crtc)
+			 drmModeRes *resources,
+			 drmModeCrtc *crtc)
 {
 	if (crtc) {
 		drmModeSetCrtc(fd, crtc->crtc_id, 0, // buffer_id
@@ -230,8 +230,8 @@ static void disable_crtc(int fd,
 }
 
 static void disable_non_main_crtcs(int fd,
-					drmModeRes *resources,
-					drmModeCrtc* main_crtc)
+				   drmModeRes *resources,
+				   drmModeCrtc* main_crtc)
 {
 	int i;
 	drmModeCrtc* crtc;
@@ -248,7 +248,7 @@ static void disable_non_main_crtcs(int fd,
 }
 
 static int video_buffer_create(video_t *video, drmModeCrtc *crtc, drmModeConnector *connector,
-						 int *pitch)
+			       int *pitch)
 {
 	struct drm_mode_create_dumb create_dumb;
 	int ret;
@@ -279,8 +279,8 @@ static int video_buffer_create(video_t *video, drmModeCrtc *crtc, drmModeConnect
 
 	uint32_t offset = 0;
 	ret = drmModeAddFB2(video->fd, crtc->mode.hdisplay, crtc->mode.vdisplay,
-					DRM_FORMAT_XRGB8888, &create_dumb.handle,
-					&create_dumb.pitch, &offset, &video->fb_id, 0);
+			    DRM_FORMAT_XRGB8888, &create_dumb.handle,
+			    &create_dumb.pitch, &offset, &video->fb_id, 0);
 	if (ret) {
 		LOG(ERROR, "drmModeAddFB2 failed");
 		goto destroy_buffer;
@@ -301,7 +301,7 @@ destroy_buffer:
 }
 
 static bool parse_edid_dtd(uint8_t *dtd, drmModeModeInfo *mode,
-				int32_t *hdisplay_size, int32_t *vdisplay_size) {
+			   int32_t *hdisplay_size, int32_t *vdisplay_size) {
 	int32_t clock;
 	int32_t hactive, hbl, hso, hsw, hsize;
 	int32_t vactive, vbl, vso, vsw, vsize;
@@ -335,8 +335,8 @@ static bool parse_edid_dtd(uint8_t *dtd, drmModeModeInfo *mode,
 	return true;
 }
 
-static bool parse_edid_dtd_display_size(
-		video_t *video, int32_t *hsize_mm, int32_t *vsize_mm) {
+static bool parse_edid_dtd_display_size(video_t *video,
+					int32_t *hsize_mm, int32_t *vsize_mm) {
 	int i;
 	drmModeModeInfo *mode = &video->crtc->mode;
 	for (i = 0; i < EDID_N_DTDS; i++) {
@@ -643,7 +643,6 @@ bool video_set_gamma(video_t* video, const char *filename)
 	return drm_status == 0;
 }
 
-
 buffer_properties_t* video_get_buffer_properties(video_t *video)
 {
 	return &video->buffer_properties;
@@ -659,7 +658,6 @@ int32_t video_getheight(video_t *video)
 	return video->buffer_properties.height;
 }
 
-
 int32_t video_getpitch(video_t *video)
 {
 	return video->buffer_properties.pitch;
@@ -669,4 +667,3 @@ int32_t video_getscaling(video_t *video)
 {
 	return video->buffer_properties.scaling;
 }
-
