@@ -51,6 +51,7 @@ typedef struct {
 
 	gamma_ramp_t gamma_ramp;
 	char edid[EDID_SIZE];
+	int ref;
 } video_t;
 
 video_t* video_init();
@@ -65,5 +66,7 @@ void video_close(video_t*);
 uint32_t* video_lock(video_t* video);
 buffer_properties_t* video_get_buffer_properties(video_t* video);
 void video_unlock(video_t* video);
+void video_addref(video_t* video);
+void video_delref(video_t* video);
 
 #endif

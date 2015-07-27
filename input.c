@@ -591,7 +591,8 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 				input.terminals[SPLASH_TERMINAL] = NULL;
 				return -1;
 			}
-			input.terminals[input.current_terminal] = term_init(true, NULL);
+			input.terminals[input.current_terminal] =
+				term_init(true, term_getvideo(terminal));
 			new_terminal = input.terminals[input.current_terminal];
 			if (!term_is_valid(new_terminal)) {
 				return -1;

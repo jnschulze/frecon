@@ -455,6 +455,8 @@ video_t* video_init()
 	new_video->buffer_properties.pitch = pitch;
 	new_video->buffer_properties.scaling = scaling;
 
+	video_addref(new_video);
+
 	return new_video;
 
 fail:
@@ -515,6 +517,10 @@ void video_close(video_t *video)
 	struct drm_mode_destroy_dumb destroy_dumb;
 
 	if (!video)
+		return;
+
+	video_delref(video);
+	if (video->ref > 0)
 		return;
 
 	video_release(video);
@@ -666,4 +672,14 @@ int32_t video_getpitch(video_t *video)
 int32_t video_getscaling(video_t *video)
 {
 	return video->buffer_properties.scaling;
+}
+
+void video_addref(video_t* video)
+{
+	video->ref++;
+}
+
+void video_delref(video_t* video)
+{
+	video->ref--;
 }

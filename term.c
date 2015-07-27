@@ -201,8 +201,10 @@ terminal_t* term_init(bool interactive, video_t* video)
 
 	new_terminal->background_valid = false;
 
-	if (video)
+	if (video) {
 		new_terminal->video = video;
+		video_addref(video);
+	}
 	else
 		new_terminal->video = video_init();
 
@@ -459,4 +461,9 @@ void term_hide_cursor(terminal_t* terminal)
 void term_show_cursor(terminal_t* terminal)
 {
 	term_write_message(terminal, "\033[?25h");
+}
+
+video_t* term_getvideo(terminal_t* terminal)
+{
+	return terminal->video;
 }

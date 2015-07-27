@@ -38,5 +38,6 @@ int term_show_image(terminal_t* terminal, image_t* image);
 void term_write_message(terminal_t* terminal, char* message);
 void term_hide_cursor(terminal_t* terminal);
 void term_show_cursor(terminal_t* terminal);
+video_t* term_getvideo(terminal_t* terminal);
 
 #endif
