@@ -235,11 +235,10 @@ terminal_t* term_init(bool interactive, video_t* video)
 
 	status = tsm_screen_new(&new_terminal->term->screen,
 			log_tsm, new_terminal->term);
-	if (new_terminal < 0) {
+	if (status < 0) {
 		term_close(new_terminal);
 		return NULL;
 	}
-	
 
 	tsm_screen_set_max_sb(new_terminal->term->screen, scrollback_size);
 
