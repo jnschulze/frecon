@@ -302,11 +302,20 @@ static void input_get_keysym_and_unicode(struct input_key_event *event,
 static int input_add(const char *devname)
 {
 	int ret = 0, fd = -1;
+	unsigned int i;
 	/* for some reason every device has a null enumerations and notifications
 	   of every device come with NULL string first */
 	if (!devname) {
 		ret = -EINVAL;
 		goto errorret;
+	}
+	/* check for duplicates */
+	for (i = 0; i < input.ndevs; ++i) {
+		if (strcmp(devname, input.devs[i].path) == 0) {
+			LOG(WARNING, "Skipping duplicate input device %s", devname);
+			ret = -EINVAL;
+			goto errorret;
+		}
 	}
 	ret = fd = open(devname, O_RDONLY);
 	if (fd < 0)
