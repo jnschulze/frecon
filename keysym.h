@@ -131,4 +131,16 @@ uint8_t keysym_table[] = {
 #define KEYSYM_INSERT	0xff63
 #define KEYSYM_DELETE	0xffff
 
+#define KEYSYM_F1	0xffbe
+#define KEYSYM_F2	0xffbf
+#define KEYSYM_F3	0xffc0
+#define KEYSYM_F4	0xffc1
+#define KEYSYM_F5	0xffc2
+#define KEYSYM_F6	0xffc3
+#define KEYSYM_F7	0xffc4
+#define KEYSYM_F8	0xffc5
+#define KEYSYM_F9	0xffc6
+#define KEYSYM_F10	0xffc7
+
+
 #endif

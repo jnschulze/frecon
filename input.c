@@ -163,22 +163,17 @@ static int input_special_key(struct input_key_event *ev)
 				term_page_down(input.terminals[input.current_terminal]);
 				return 1;
 			case KEY_UP:
-				term_line_up(input.terminals[input.current_terminal]);
+				if (input.kbd_state.search_state)
+					term_page_up(input.terminals[input.current_terminal]);
+				else
+					term_line_up(input.terminals[input.current_terminal]);
 				return 1;
 			case KEY_DOWN:
-				term_line_down(input.terminals[input.current_terminal]);
-				return 1;
-			}
-		}
-
-		if (input.kbd_state.search_state && ev->value) {
-			switch (ev->code) {
-				case KEY_UP:
-					term_page_up(input.terminals[input.current_terminal]);
-					return 1;
-				case KEY_DOWN:
+				if (input.kbd_state.search_state)
 					term_page_down(input.terminals[input.current_terminal]);
-					return 1;
+				else
+					term_line_down(input.terminals[input.current_terminal]);
+				return 1;
 			}
 		}
 
@@ -266,6 +261,26 @@ static void input_get_keysym_and_unicode(struct input_key_event *event,
 	struct {
 		uint32_t code;
 		uint32_t keysym;
+	} search_keys[] = {
+		{ KEY_F1, KEYSYM_F1},
+		{ KEY_F2, KEYSYM_F2},
+		{ KEY_F3, KEYSYM_F3},
+		{ KEY_F4, KEYSYM_F4},
+		{ KEY_F5, KEYSYM_F5},
+		{ KEY_F6, KEYSYM_F6},
+		{ KEY_F7, KEYSYM_F7},
+		{ KEY_F8, KEYSYM_F8},
+		{ KEY_F9, KEYSYM_F8},
+		{ KEY_F10, KEYSYM_F10},
+		{ KEY_UP, KEYSYM_PAGEUP},
+		{ KEY_DOWN, KEYSYM_PAGEDOWN},
+		{ KEY_LEFT, KEYSYM_HOME},
+		{ KEY_RIGHT, KEYSYM_END},
+	};
+
+	struct {
+		uint32_t code;
+		uint32_t keysym;
 	} non_ascii_keys[] = {
 		{ KEY_ESC, KEYSYM_ESC},
 		{ KEY_HOME, KEYSYM_HOME},
@@ -279,6 +294,16 @@ static void input_get_keysym_and_unicode(struct input_key_event *event,
 		{ KEY_INSERT, KEYSYM_INSERT},
 		{ KEY_DELETE, KEYSYM_DELETE},
 	};
+
+	if (input.kbd_state.search_state) {
+		for (unsigned i = 0; i < ARRAY_SIZE(search_keys); i++) {
+			if (search_keys[i].code == event->code) {
+				*keysym = search_keys[i].keysym;
+				*unicode = -1;
+				return;
+			}
+		}
+	}
 
 	for (unsigned i = 0; i < ARRAY_SIZE(non_ascii_keys); i++) {
 		if (non_ascii_keys[i].code == event->code) {
