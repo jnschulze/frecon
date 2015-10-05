@@ -45,7 +45,6 @@ static struct option command_options[] = {
 };
 
 typedef struct {
-	bool    print_resolution;
 	bool    standalone;
 } commandflags_t;
 
@@ -71,9 +70,28 @@ int main(int argc, char* argv[])
 	int i;
 	int32_t x, y;
 	splash_t *splash;
-	video_t  *video;
 	dbus_t *dbus;
 	commandflags_t command_flags;
+
+	/* Handle resolution special before splash init */
+	for (;;) {
+		c = getopt_long(argc, argv, "", command_options, NULL);
+		if (c == -1) {
+			break;
+		} else if (c == FLAG_PRINT_RESOLUTION) {
+			video_t *video = video_init();
+			if (!video)
+				return EXIT_FAILURE;
+
+			printf("%d %d", video_getwidth(video),
+			       video_getheight(video));
+			video_close(video);
+			return EXIT_SUCCESS;
+		}
+	}
+
+	/* Reset option parsing */
+	optind = 1;
 
 	memset(&command_flags, 0, sizeof(command_flags));
 	command_flags.standalone = true;
@@ -130,10 +148,6 @@ int main(int argc, char* argv[])
 				parse_offset(optarg, &x, &y);
 				splash_set_offset(splash, x, y);
 				break;
-
-			case FLAG_PRINT_RESOLUTION:
-				command_flags.print_resolution = true;
-				break;
 		}
 	}
 
@@ -149,15 +163,7 @@ int main(int argc, char* argv[])
 	 * who can then pass it to the other objects that need it
 	 */
 	dbus = NULL;
-	if (command_flags.print_resolution) {
-		video = video_init();
-		if (!video)
-			return EXIT_FAILURE;
-
-		printf("%d %d", video_getwidth(video), video_getheight(video));
-		return EXIT_SUCCESS;
-	}
-	else if (command_flags.standalone == false) {
+	if (command_flags.standalone == false) {
 		splash_present_term_file(splash);
 		daemonize();
 	}
