@@ -24,6 +24,8 @@
 #define  FLAG_DEV_MODE                     'e'
 #define  FLAG_FRAME_INTERVAL               'f'
 #define  FLAG_GAMMA                        'g'
+#define  FLAG_IMAGE                        'i'
+#define  FLAG_IMAGE_HIRES                  'I'
 #define  FLAG_LOOP_START                   'l'
 #define  FLAG_LOOP_INTERVAL                'L'
 #define  FLAG_LOOP_OFFSET                  'o'
@@ -36,6 +38,8 @@ static struct option command_options[] = {
 	{ "dev-mode", no_argument, NULL, FLAG_DEV_MODE },
 	{ "frame-interval", required_argument, NULL, FLAG_FRAME_INTERVAL },
 	{ "gamma", required_argument, NULL, FLAG_GAMMA },
+	{ "image", required_argument, NULL, FLAG_IMAGE },
+	{ "image-hires", required_argument, NULL, FLAG_IMAGE_HIRES },
 	{ "loop-start", required_argument, NULL, FLAG_LOOP_START },
 	{ "loop-interval", required_argument, NULL, FLAG_LOOP_INTERVAL },
 	{ "loop-offset", required_argument, NULL, FLAG_LOOP_OFFSET },
@@ -129,6 +133,16 @@ int main(int argc, char* argv[])
 
 			case FLAG_DEV_MODE:
 				splash_set_devmode(splash);
+				break;
+
+			case FLAG_IMAGE:
+				if (!splash_is_hires(splash))
+					splash_add_image(splash, optarg);
+				break;
+
+			case FLAG_IMAGE_HIRES:
+				if (splash_is_hires(splash))
+					splash_add_image(splash, optarg);
 				break;
 
 			case FLAG_LOOP_START:

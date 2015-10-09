@@ -317,3 +317,10 @@ void splash_present_term_file(splash_t* splash)
 {
 	fprintf(stdout, "%s\n", term_get_ptsname(splash->terminal));
 }
+
+int splash_is_hires(splash_t* splash)
+{
+	if (splash && splash->video)
+		return video_getwidth(splash->video) > 1920;
+	return 0;
+}
