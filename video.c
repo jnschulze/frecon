@@ -105,6 +105,9 @@ static int kms_open(video_t *video)
 				video->driver_version.date,
 				video->driver_version.desc);
 	}
+
+	video->drm_plane_resources = drmModeGetPlaneResources(fd);
+
 	return fd;
 }
 
@@ -415,9 +418,6 @@ video_t* video_init()
 		goto fail;
 	}
 
-	disable_non_main_crtcs(new_video->fd,
-			new_video->drm_resources, new_video->crtc);
-
 	new_video->crtc->mode =
 		new_video->main_monitor_connector->modes[selected_mode];
 
@@ -475,6 +475,69 @@ fail:
 	return NULL;
 }
 
+static int video_is_primary_plane(video_t* video, uint32_t plane_id)
+{
+	uint32_t p;
+	bool found = false;
+	int ret = -1;
+
+	drmModeObjectPropertiesPtr props;
+	props = drmModeObjectGetProperties(video->fd,
+					   plane_id,
+					   DRM_MODE_OBJECT_PLANE);
+	if (!props) {
+		LOG(ERROR, "Unable to get plane properties: %m");
+		return -1;
+	}
+
+	for (p = 0; p < props->count_props && !found; p++) {
+		drmModePropertyPtr prop;
+		prop = drmModeGetProperty(video->fd, props->props[p]);
+		if (prop) {
+			if (strcmp("type", prop->name) == 0) {
+				found = true;
+				ret = (props->prop_values[p] == DRM_PLANE_TYPE_PRIMARY);
+			}
+			drmModeFreeProperty(prop);
+		}
+	}
+
+	drmModeFreeObjectProperties(props);
+
+	return ret;
+}
+
+/* disable all planes except for primary on crtc we use */
+static void video_disable_non_primary_planes(video_t* video)
+{
+	uint32_t p;
+	int ret;
+
+	if (!video->drm_plane_resources)
+		return;
+
+	for (p = 0; p < video->drm_plane_resources->count_planes; p++) {
+		drmModePlanePtr plane;
+		plane = drmModeGetPlane(video->fd,
+					video->drm_plane_resources->planes[p]);
+		if (plane) {
+			int primary = video_is_primary_plane(video, plane->plane_id);
+			if (!(plane->crtc_id == video->crtc->crtc_id && primary != 0)) {
+				ret = drmModeSetPlane(video->fd, plane->plane_id, plane->crtc_id,
+						      0, 0,
+						      0, 0,
+						      0, 0,
+						      0, 0,
+						      0, 0);
+				if (ret) {
+					LOG(WARNING, "Unable to disable plane: %m");
+				}
+			}
+			drmModeFreePlane(plane);
+		}
+	}
+}
+
 
 int32_t video_setmode(video_t* video)
 {
@@ -502,8 +565,11 @@ int32_t video_setmode(video_t* video)
 	if (ret)
 		LOG(ERROR, "Unable to hide cursor");
 
-done:
+	video_disable_non_primary_planes(video);
+	disable_non_main_crtcs(video->fd,
+			video->drm_resources, video->crtc);
 
+done:
 	return ret;
 }
 
@@ -549,6 +615,11 @@ void video_close(video_t *video)
 		if (video->crtc) {
 			drmModeFreeCrtc(video->crtc);
 			video->crtc = NULL;
+		}
+
+		if (video->drm_plane_resources) {
+			drmModeFreePlaneResources(video->drm_plane_resources);
+			video->drm_plane_resources = NULL;
 		}
 
 		if (video->drm_resources) {

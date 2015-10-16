@@ -43,6 +43,7 @@ typedef struct {
 	buffer_properties_t buffer_properties;
 	video_lock_t        lock;
 	drmModeRes         *drm_resources;
+	drmModePlaneResPtr  drm_plane_resources;
 	drmModeConnector   *main_monitor_connector;
 	drmModeCrtc *crtc;
 	uint32_t buffer_handle;
