@@ -538,7 +538,6 @@ static void video_disable_non_primary_planes(video_t* video)
 	}
 }
 
-
 int32_t video_setmode(video_t* video)
 {
 	int32_t ret;
@@ -632,9 +631,7 @@ void video_close(video_t *video)
 	}
 
 	free(video);
-
 }
-
 
 uint32_t* video_lock(video_t *video)
 {

@@ -36,7 +36,7 @@ struct _dbus_t {
 };
 
 static DBusHandlerResult
-_handle_switchvt(DBusConnection *connection, DBusMessage *message)
+handle_switchvt(DBusConnection *connection, DBusMessage *message)
 {
 	DBusMessage *reply;
 	DBusMessage *msg;
@@ -105,7 +105,7 @@ _handle_switchvt(DBusConnection *connection, DBusMessage *message)
 }
 
 static DBusHandlerResult
-_handle_makevt(DBusConnection *connection, DBusMessage *message)
+handle_makevt(DBusConnection *connection, DBusMessage *message)
 {
 	DBusMessage *reply;
 	DBusError error;
@@ -141,7 +141,7 @@ _handle_makevt(DBusConnection *connection, DBusMessage *message)
 }
 
 static DBusHandlerResult
-_handle_terminate(DBusConnection *connection, DBusMessage *message)
+handle_terminate(DBusConnection *connection, DBusMessage *message)
 {
 	DBusMessage *reply;
 
@@ -153,7 +153,7 @@ _handle_terminate(DBusConnection *connection, DBusMessage *message)
 
 #define NUM_IMAGE_PARAMETERS     (2)
 static DBusHandlerResult
-_handle_image(DBusConnection *connection, DBusMessage *message)
+handle_image(DBusConnection *connection, DBusMessage *message)
 {
 	DBusMessage *reply;
 	DBusError error;
@@ -230,27 +230,26 @@ fail:
 }
 
 static void
-_frecon_dbus_unregister(DBusConnection *connection, void* user_data)
+frecon_dbus_unregister(DBusConnection *connection, void* user_data)
 {
 }
 
-
 static DBusHandlerResult
-_frecon_dbus_message_handler(DBusConnection *connection, DBusMessage *message, void* user_data)
+frecon_dbus_message_handler(DBusConnection *connection, DBusMessage *message, void* user_data)
 {
 	if (dbus_message_is_method_call(message,
 				kFreconDbusInterface, COMMAND_SWITCH_VT)) {
-		return _handle_switchvt(connection, message);
+		return handle_switchvt(connection, message);
 	} else if (dbus_message_is_method_call(message,
 				kFreconDbusInterface, COMMAND_MAKE_VT)) {
-		return _handle_makevt(connection, message);
+		return handle_makevt(connection, message);
 	}
 	else if (dbus_message_is_method_call(message,
 				kFreconDbusInterface, COMMAND_TERMINATE)) {
-		return _handle_terminate(connection, message);
+		return handle_terminate(connection, message);
 	} else if (dbus_message_is_method_call(message,
 				kFreconDbusInterface, COMMAND_IMAGE)) {
-		return _handle_image(connection, message);
+		return handle_image(connection, message);
 	}
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -259,12 +258,12 @@ _frecon_dbus_message_handler(DBusConnection *connection, DBusMessage *message, v
 
 static DBusObjectPathVTable
 frecon_vtable = {
-	_frecon_dbus_unregister,
-	_frecon_dbus_message_handler,
+	frecon_dbus_unregister,
+	frecon_dbus_message_handler,
 	NULL
 };
 
-dbus_bool_t add_watch(DBusWatch *w, void* data)
+static dbus_bool_t add_watch(DBusWatch *w, void* data)
 {
 	dbus_t *dbus = (dbus_t*)data;
 	dbus->watch = w;
@@ -272,11 +271,11 @@ dbus_bool_t add_watch(DBusWatch *w, void* data)
 	return TRUE;
 }
 
-void remove_watch(DBusWatch *w, void* data)
+static void remove_watch(DBusWatch *w, void* data)
 {
 }
 
-void toggle_watch(DBusWatch *w, void* data)
+static void toggle_watch(DBusWatch *w, void* data)
 {
 }
 
@@ -327,7 +326,6 @@ dbus_t* dbus_init()
 
 	return new_dbus;
 }
-
 
 bool dbus_method_call0(dbus_t* dbus, const char* service_name,
 		const char* service_path, const char* service_interface,
@@ -410,7 +408,7 @@ bool dbus_signal_match_handler(
 		dbus_message_handler_t handler,
 		void *user_data)
 {
-	DBusError	 err;
+	DBusError err;
 	dbus->signal.vtable.unregister_function = dbus_path_unregister_function;
 	dbus->signal.vtable.message_function = dbus_message_function;
 	dbus->signal.signal_handler = handler;
@@ -463,7 +461,6 @@ int dbus_get_fd(dbus_t* dbus)
 
 	return dbus->fd;
 }
-
 
 void dbus_dispatch_io(dbus_t* dbus)
 {
