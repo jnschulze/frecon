@@ -13,7 +13,6 @@
 #include <unistd.h>
 
 #include "image.h"
-
 #include "util.h"
 
 typedef union {

@@ -5,8 +5,8 @@
  */
 
 #include <stdlib.h>
-#include "dbus.h"
 
+#include "dbus.h"
 #include "dbus_interface.h"
 #include "image.h"
 #include "input.h"

@@ -15,10 +15,9 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-#include "input.h"
-
 #include "dbus_interface.h"
 #include "dbus.h"
+#include "input.h"
 #include "keysym.h"
 #include "util.h"
 

@@ -15,10 +15,10 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "util.h"
-#include "video.h"
 #include "dbus_interface.h"
 #include "dbus.h"
+#include "util.h"
+#include "video.h"
 
 static drmModeConnector *find_first_connected_connector(int fd,
 							drmModeRes *resources)

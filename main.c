@@ -16,8 +16,8 @@
 #include "input.h"
 #include "splash.h"
 #include "term.h"
-#include "video.h"
 #include "util.h"
+#include "video.h"
 
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
