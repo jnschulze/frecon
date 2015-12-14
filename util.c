@@ -62,13 +62,13 @@ void LOG(int severity, const char* fmt, ...)
 	fprintf(stderr, "\n");
 }
 
-void parse_location(char* loc_str, int *x, int *y)
+void parse_location(char* loc_str, int* x, int* y)
 {
 	int count = 0;
 	char* savedptr;
 	char* token;
 	char* str;
-	int *results[] = {x, y};
+	int* results[] = {x, y};
 	long tmp;
 
 	for (token = str = loc_str; token != NULL; str = NULL) {
@@ -83,8 +83,8 @@ void parse_location(char* loc_str, int *x, int *y)
 	}
 }
 
-void parse_filespec(char* filespec, char *filename,
-		int32_t *offset_x, int32_t *offset_y, uint32_t *duration,
+void parse_filespec(char* filespec, char* filename,
+		int32_t* offset_x, int32_t* offset_y, uint32_t* duration,
 		uint32_t default_duration, int32_t default_x, int32_t default_y)
 {
 	char* saved_ptr;

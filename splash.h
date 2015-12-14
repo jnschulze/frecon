@@ -17,7 +17,7 @@ splash_t* splash_init();
 int splash_is_hires(splash_t* splash);
 int splash_num_images(splash_t* splash);
 void splash_present_term_file(splash_t* splash);
-int splash_run(splash_t*, dbus_t **dbus);
+int splash_run(splash_t*, dbus_t** dbus);
 int splash_set_clear(splash_t* splash, uint32_t clear_color);
 void splash_set_dbus(splash_t* splash, dbus_t* dbus);
 void splash_set_default_duration(splash_t* splash, uint32_t duration);

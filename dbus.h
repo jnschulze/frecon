@@ -34,7 +34,7 @@ bool dbus_signal_match_handler(
     const char* interface,
     const char* rule,
     dbus_message_handler_t handler,
-    void *user_data);
+    void* user_data);
 void dbus_destroy(dbus_t* dbus);
 void dbus_add_fd(dbus_t* dbus, fd_set* read_set, fd_set* exception_set);
 int dbus_get_fd(dbus_t* dbus);

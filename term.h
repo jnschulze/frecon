@@ -11,7 +11,7 @@
 #include "video.h"
 
 typedef struct _terminal_t terminal_t;
-terminal_t *term_init(bool interactive, video_t* video);
+terminal_t* term_init(bool interactive, video_t* video);
 void term_close(terminal_t* terminal);
 void term_redraw(terminal_t* terminal);
 void term_set_dbus(terminal_t* terminal, dbus_t* dbus);

@@ -20,29 +20,29 @@
 #include "video.h"
 
 struct term {
-	struct tsm_screen *screen;
-	struct tsm_vte *vte;
-	struct shl_pty *pty;
+	struct tsm_screen* screen;
+	struct tsm_vte* vte;
+	struct shl_pty* pty;
 	int pty_bridge;
 	int pid;
 	tsm_age_t age;
 	int char_x, char_y;
 	int pitch;
-	uint32_t *dst_image;
+	uint32_t* dst_image;
 };
 
 struct _terminal_t {
-	uint32_t     background;
-	bool         background_valid;
-	video_t     *video;
-	dbus_t      *dbus;
-	struct term *term;
-	bool         active;
-	char        **exec;
+	uint32_t background;
+	bool background_valid;
+	video_t* video;
+	dbus_t* dbus;
+	struct term* term;
+	bool active;
+	char** exec;
 };
 
 
-static char *interactive_cmd_line[] = {
+static char* interactive_cmd_line[] = {
 	"/sbin/agetty",
 	"-",
 	"9600",
@@ -51,7 +51,7 @@ static char *interactive_cmd_line[] = {
 };
 
 
-static char *noninteractive_cmd_line[] = {
+static char* noninteractive_cmd_line[] = {
 	"/bin/cat",
 	NULL
 };
@@ -65,14 +65,14 @@ static void __attribute__ ((noreturn)) term_run_child(terminal_t* terminal)
 	exit(1);
 }
 
-static int term_draw_cell(struct tsm_screen *screen, uint32_t id,
-				const uint32_t *ch, size_t len,
+static int term_draw_cell(struct tsm_screen* screen, uint32_t id,
+				const uint32_t* ch, size_t len,
 				unsigned int cwidth, unsigned int posx,
 				unsigned int posy,
-				const struct tsm_screen_attr *attr,
-				tsm_age_t age, void *data)
+				const struct tsm_screen_attr* attr,
+				tsm_age_t age, void* data)
 {
-	terminal_t *terminal = (terminal_t*)data;
+	terminal_t* terminal = (terminal_t*)data;
 	uint32_t front_color, back_color;
 	uint8_t br, bb, bg;
 	uint32_t Y;
@@ -114,9 +114,9 @@ static int term_draw_cell(struct tsm_screen *screen, uint32_t id,
 	return 0;
 }
 
-void term_redraw(terminal_t *terminal)
+void term_redraw(terminal_t* terminal)
 {
-	uint32_t *video_buffer;
+	uint32_t* video_buffer;
 	video_buffer = video_lock(terminal->video);
 	if (video_buffer != NULL) {
 		terminal->term->dst_image = video_buffer;
@@ -135,19 +135,19 @@ void term_key_event(terminal_t* terminal, uint32_t keysym, int32_t unicode)
 	term_redraw(terminal);
 }
 
-static void term_read_cb(struct shl_pty *pty, char *u8, size_t len, void *data)
+static void term_read_cb(struct shl_pty* pty, char* u8, size_t len, void* data)
 {
-	terminal_t *terminal = (terminal_t*)data;
+	terminal_t* terminal = (terminal_t*)data;
 
 	tsm_vte_input(terminal->term->vte, u8, len);
 
 	term_redraw(terminal);
 }
 
-static void term_write_cb(struct tsm_vte *vte, const char *u8, size_t len,
-				void *data)
+static void term_write_cb(struct tsm_vte* vte, const char* u8, size_t len,
+				void* data)
 {
-	struct term *term = data;
+	struct term* term = data;
 	int r;
 
 	r = shl_pty_write(term->pty, u8, len);
@@ -157,7 +157,7 @@ static void term_write_cb(struct tsm_vte *vte, const char *u8, size_t len,
 	shl_pty_dispatch(term->pty);
 }
 
-static const char *sev2str_table[] = {
+static const char* sev2str_table[] = {
 	"FATAL",
 	"ALERT",
 	"CRITICAL",
@@ -168,7 +168,7 @@ static const char *sev2str_table[] = {
 	"DEBUG"
 };
 
-static const char *sev2str(unsigned int sev)
+static const char* sev2str(unsigned int sev)
 {
 	if (sev > 7)
 		return "DEBUG";
@@ -179,8 +179,8 @@ static const char *sev2str(unsigned int sev)
 #ifdef __clang__
 __attribute__((__format__ (__printf__, 7, 0)))
 #endif
-static void log_tsm(void *data, const char *file, int line, const char *fn,
-				const char *subs, unsigned int sev, const char *format,
+static void log_tsm(void* data, const char* file, int line, const char* fn,
+				const char* subs, unsigned int sev, const char* format,
 				va_list args)
 {
 	fprintf(stderr, "%s: %s: ", sev2str(sev), subs);
@@ -193,7 +193,7 @@ terminal_t* term_init(bool interactive, video_t* video)
 	const int scrollback_size = 200;
 	uint32_t char_width, char_height;
 	int status;
-	terminal_t *new_terminal;
+	terminal_t* new_terminal;
 
 	new_terminal = (terminal_t*)calloc(1, sizeof(*new_terminal));
 	if (!new_terminal)
@@ -315,12 +315,12 @@ void term_deactivate(terminal_t* terminal)
 	video_release(terminal->video);
 }
 
-void term_set_dbus(terminal_t *term, dbus_t* dbus)
+void term_set_dbus(terminal_t* term, dbus_t* dbus)
 {
 	term->dbus = dbus;
 }
 
-void term_close(terminal_t *term)
+void term_close(terminal_t* term)
 {
 	if (!term)
 		return;
@@ -443,7 +443,7 @@ int term_show_image(terminal_t* terminal, image_t* image)
 
 void term_write_message(terminal_t* terminal, char* message)
 {
-	FILE *fp;
+	FILE* fp;
 
 	fp = fopen(term_get_ptsname(terminal), "w");
 	if (fp) {

@@ -21,9 +21,9 @@
 #define DBUS_DEFAULT_DELAY             3000
 
 struct _dbus_t {
-	DBusConnection *conn;
+	DBusConnection* conn;
 	int terminate;
-	DBusWatch *watch;
+	DBusWatch* watch;
 	int fd;
 	struct {
 		DBusObjectPathVTable vtable;
@@ -36,13 +36,13 @@ struct _dbus_t {
 };
 
 static DBusHandlerResult
-handle_switchvt(DBusConnection *connection, DBusMessage *message)
+handle_switchvt(DBusConnection* connection, DBusMessage* message)
 {
-	DBusMessage *reply;
-	DBusMessage *msg;
+	DBusMessage* reply;
+	DBusMessage* msg;
 	DBusError error;
 	dbus_bool_t stat;
-	terminal_t *terminal;
+	terminal_t* terminal;
 	unsigned int vt;
 
 	dbus_error_init(&error);
@@ -105,14 +105,14 @@ handle_switchvt(DBusConnection *connection, DBusMessage *message)
 }
 
 static DBusHandlerResult
-handle_makevt(DBusConnection *connection, DBusMessage *message)
+handle_makevt(DBusConnection* connection, DBusMessage* message)
 {
-	DBusMessage *reply;
+	DBusMessage* reply;
 	DBusError error;
 	dbus_bool_t stat;
-	terminal_t *terminal;
+	terminal_t* terminal;
 	unsigned int vt;
-	const char *reply_str;
+	const char* reply_str;
 
 	dbus_error_init(&error);
 	stat = dbus_message_get_args(message, &error, DBUS_TYPE_UINT32,
@@ -141,9 +141,9 @@ handle_makevt(DBusConnection *connection, DBusMessage *message)
 }
 
 static DBusHandlerResult
-handle_terminate(DBusConnection *connection, DBusMessage *message)
+handle_terminate(DBusConnection* connection, DBusMessage* message)
 {
-	DBusMessage *reply;
+	DBusMessage* reply;
 
 	reply = dbus_message_new_method_return(message);
 	dbus_connection_send(connection, reply, NULL);
@@ -153,13 +153,13 @@ handle_terminate(DBusConnection *connection, DBusMessage *message)
 
 #define NUM_IMAGE_PARAMETERS     (2)
 static DBusHandlerResult
-handle_image(DBusConnection *connection, DBusMessage *message)
+handle_image(DBusConnection* connection, DBusMessage* message)
 {
-	DBusMessage *reply;
+	DBusMessage* reply;
 	DBusError error;
 	dbus_bool_t stat;
-	terminal_t *terminal;
-	image_t *image;
+	terminal_t* terminal;
+	image_t* image;
 	int i;
 	int x, y;
 	char* option[NUM_IMAGE_PARAMETERS];
@@ -230,12 +230,12 @@ fail:
 }
 
 static void
-frecon_dbus_unregister(DBusConnection *connection, void* user_data)
+frecon_dbus_unregister(DBusConnection* connection, void* user_data)
 {
 }
 
 static DBusHandlerResult
-frecon_dbus_message_handler(DBusConnection *connection, DBusMessage *message, void* user_data)
+frecon_dbus_message_handler(DBusConnection* connection, DBusMessage* message, void* user_data)
 {
 	if (dbus_message_is_method_call(message,
 				kFreconDbusInterface, COMMAND_SWITCH_VT)) {
@@ -263,19 +263,19 @@ frecon_vtable = {
 	NULL
 };
 
-static dbus_bool_t add_watch(DBusWatch *w, void* data)
+static dbus_bool_t add_watch(DBusWatch* w, void* data)
 {
-	dbus_t *dbus = (dbus_t*)data;
+	dbus_t* dbus = (dbus_t*)data;
 	dbus->watch = w;
 
 	return TRUE;
 }
 
-static void remove_watch(DBusWatch *w, void* data)
+static void remove_watch(DBusWatch* w, void* data)
 {
 }
 
-static void toggle_watch(DBusWatch *w, void* data)
+static void toggle_watch(DBusWatch* w, void* data)
 {
 }
 
@@ -328,8 +328,8 @@ dbus_t* dbus_init()
 }
 
 bool dbus_method_call0(dbus_t* dbus, const char* service_name,
-		const char* service_path, const char* service_interface,
-		const char* method)
+		       const char* service_path, const char* service_interface,
+		       const char* method)
 {
 	DBusMessage *msg = NULL;
 
@@ -352,8 +352,8 @@ bool dbus_method_call0(dbus_t* dbus, const char* service_name,
 }
 
 bool dbus_method_call1(dbus_t* dbus, const char* service_name,
-		const char* service_path, const char* service_interface,
-		const char* method, int arg_type, void* param)
+		       const char* service_path, const char* service_interface,
+		       const char* method, int arg_type, void* param)
 {
 	DBusMessage *msg = NULL;
 
@@ -382,13 +382,13 @@ bool dbus_method_call1(dbus_t* dbus, const char* service_name,
 }
 
 static void
-dbus_path_unregister_function(DBusConnection *connection, void *user_data)
+dbus_path_unregister_function(DBusConnection* connection, void* user_data)
 {
 }
 
 static DBusHandlerResult
-dbus_message_function(DBusConnection *connection,
-		DBusMessage *message, void* user_data)
+dbus_message_function(DBusConnection* connection,
+		      DBusMessage* message, void* user_data)
 {
 	dbus_t* dbus = (dbus_t*)user_data;
 
@@ -406,7 +406,7 @@ bool dbus_signal_match_handler(
 		const char* interface,
 		const char* rule,
 		dbus_message_handler_t handler,
-		void *user_data)
+		void* user_data)
 {
 	DBusError err;
 	dbus->signal.vtable.unregister_function = dbus_path_unregister_function;
@@ -435,9 +435,10 @@ bool dbus_signal_match_handler(
 void dbus_destroy(dbus_t* dbus)
 {
 	/* FIXME - not sure what the right counterpart to
-		dbus_bus_get() is, unref documentation is rather
-		unclear. Not a big issue but it would be nice to
-		clean up properly here */
+	 * dbus_bus_get() is, unref documentation is rather
+	 * unclear. Not a big issue but it would be nice to
+	 * clean up properly here
+	 */
 	/* dbus_connection_unref(dbus->conn); */
 	if (dbus)
 		free(dbus);

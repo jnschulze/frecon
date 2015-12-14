@@ -73,8 +73,8 @@ int main(int argc, char* argv[])
 	int c;
 	int i;
 	int32_t x, y;
-	splash_t *splash;
-	dbus_t *dbus;
+	splash_t* splash;
+	dbus_t* dbus;
 	commandflags_t command_flags;
 
 	/* Handle resolution special before splash init */

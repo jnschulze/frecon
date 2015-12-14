@@ -14,20 +14,20 @@
 
 static int font_scaling = 1;
 static int glyph_size = GLYPH_BYTES_PER_ROW * GLYPH_HEIGHT;
-static uint8_t *prescaled_glyphs = NULL;
+static uint8_t* prescaled_glyphs = NULL;
 static int font_ref = 0;
 
-static uint8_t get_bit(const uint8_t *buffer, int bit_offset)
+static uint8_t get_bit(const uint8_t* buffer, int bit_offset)
 {
 	return (buffer[bit_offset / 8] >> (7 - (bit_offset % 8))) & 0x1;
 }
 
-static void set_bit(uint8_t *buffer, int bit_offset)
+static void set_bit(uint8_t* buffer, int bit_offset)
 {
 	buffer[bit_offset / 8] |= (0x1 << (7 - (bit_offset % 8)));
 }
 
-static uint8_t glyph_pixel(const uint8_t *glyph, int x, int y)
+static uint8_t glyph_pixel(const uint8_t* glyph, int x, int y)
 {
 	if (x < 0 || x >= GLYPH_WIDTH || y < 0 || y >= GLYPH_HEIGHT)
 		return 0;
@@ -108,7 +108,7 @@ static uint8_t scale_pixel(uint32_t neighbors, int sx, int sy, int scaling)
 	}
 }
 
-static void scale_glyph(uint8_t *dst, const uint8_t *src, int scaling)
+static void scale_glyph(uint8_t* dst, const uint8_t* src, int scaling)
 {
 	for (int y = 0; y < GLYPH_HEIGHT; y++) {
 		for (int x = 0; x < GLYPH_WIDTH; x++) {
@@ -121,7 +121,7 @@ static void scale_glyph(uint8_t *dst, const uint8_t *src, int scaling)
 				}
 			}
 			for (int sy = 0; sy < scaling; sy++) {
-				uint8_t *dst_row = &dst[(y * scaling + sy) *
+				uint8_t* dst_row = &dst[(y * scaling + sy) *
 					GLYPH_BYTES_PER_ROW * scaling];
 				for (int sx = 0; sx < scaling; sx++) {
 					if (scale_pixel(neighbors, sx, sy,
@@ -140,10 +140,10 @@ static void prescale_font(int scaling)
 	int glyph_count = sizeof(glyphs) / (GLYPH_BYTES_PER_ROW * GLYPH_HEIGHT);
 	glyph_size = GLYPH_BYTES_PER_ROW * GLYPH_HEIGHT * scaling * scaling;
 	if (!prescaled_glyphs)
-		prescaled_glyphs = (uint8_t *)calloc(glyph_count, glyph_size);
+		prescaled_glyphs = (uint8_t*)calloc(glyph_count, glyph_size);
 	for (int i = 0; i < glyph_count; i++) {
-		const uint8_t *src_glyph = glyphs[i];
-		uint8_t *dst_glyph = &prescaled_glyphs[i * glyph_size];
+		const uint8_t* src_glyph = glyphs[i];
+		uint8_t* dst_glyph = &prescaled_glyphs[i * glyph_size];
 		scale_glyph(dst_glyph, src_glyph, scaling);
 	}
 }
@@ -170,13 +170,13 @@ void font_free()
 	}
 }
 
-void font_get_size(uint32_t *char_width, uint32_t *char_height)
+void font_get_size(uint32_t* char_width, uint32_t* char_height)
 {
 	*char_width = GLYPH_WIDTH * font_scaling;
 	*char_height = GLYPH_HEIGHT * font_scaling;
 }
 
-void font_fillchar(uint32_t *dst_pointer, int dst_char_x, int dst_char_y,
+void font_fillchar(uint32_t* dst_pointer, int dst_char_x, int dst_char_y,
 		   int32_t pitch, uint32_t front_color, uint32_t back_color)
 {
 	int dst_x = dst_char_x * GLYPH_WIDTH * font_scaling;
@@ -188,7 +188,7 @@ void font_fillchar(uint32_t *dst_pointer, int dst_char_x, int dst_char_y,
 			    back_color;
 }
 
-void font_render(uint32_t *dst_pointer, int dst_char_x, int dst_char_y,
+void font_render(uint32_t* dst_pointer, int dst_char_x, int dst_char_y,
 		 int32_t pitch, uint32_t ch, uint32_t front_color,
 		 uint32_t back_color)
 {
@@ -204,7 +204,7 @@ void font_render(uint32_t *dst_pointer, int dst_char_x, int dst_char_y,
 		}
 	}
 
-	const uint8_t *glyph;
+	const uint8_t* glyph;
 	if (font_scaling == 1) {
 		glyph = glyphs[glyph_index];
 	} else {
@@ -212,7 +212,7 @@ void font_render(uint32_t *dst_pointer, int dst_char_x, int dst_char_y,
 	}
 
 	for (int j = 0; j < GLYPH_HEIGHT * font_scaling; j++) {
-		const uint8_t *src_row =
+		const uint8_t* src_row =
 			&glyph[j * GLYPH_BYTES_PER_ROW * font_scaling];
 		for (int i = 0; i < GLYPH_WIDTH * font_scaling; i++) {
 			dst_pointer[dst_x + i + (dst_y + j) * pitch / 4] =

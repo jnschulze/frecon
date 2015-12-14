@@ -25,26 +25,26 @@
 #define  DBUS_WAIT_DELAY        (50000)
 
 typedef struct {
-	image_t    *image;
-	uint32_t    duration;
+	image_t* image;
+	uint32_t duration;
 } splash_frame_t;
 
 struct _splash_t {
-	video_t         *video;
-	terminal_t      *terminal;
-	int              num_images;
-	uint32_t         clear;
-	splash_frame_t   image_frames[MAX_SPLASH_IMAGES];
-	bool             terminated;
-	bool             devmode;
-	dbus_t          *dbus;
-	int32_t          loop_start;
-	uint32_t         loop_duration;
-	uint32_t         default_duration;
-	int32_t          offset_x;
-	int32_t          offset_y;
-	int32_t          loop_offset_x;
-	int32_t          loop_offset_y;
+	video_t* video;
+	terminal_t* terminal;
+	int num_images;
+	uint32_t clear;
+	splash_frame_t image_frames[MAX_SPLASH_IMAGES];
+	bool terminated;
+	bool devmode;
+	dbus_t* dbus;
+	int32_t loop_start;
+	uint32_t loop_duration;
+	uint32_t default_duration;
+	int32_t offset_x;
+	int32_t offset_y;
+	int32_t loop_offset_x;
+	int32_t loop_offset_y;
 };
 
 
@@ -84,7 +84,7 @@ int splash_destroy(splash_t* splash)
 	return 0;
 }
 
-int splash_set_clear(splash_t *splash, uint32_t clear_color)
+int splash_set_clear(splash_t* splash, uint32_t clear_color)
 {
 	splash->clear = clear_color;
 	return 0;
@@ -94,7 +94,7 @@ int splash_add_image(splash_t* splash, char* filespec)
 {
 	image_t* image;
 	int32_t offset_x, offset_y;
-	char *filename;
+	char* filename;
 	uint32_t duration;
 	if (splash->num_images >= MAX_SPLASH_IMAGES)
 		return 1;
@@ -118,7 +118,7 @@ int splash_add_image(splash_t* splash, char* filespec)
 	return 0;
 }
 
-static void splash_clear_screen(splash_t *splash)
+static void splash_clear_screen(splash_t* splash)
 {
 	term_set_background(splash->terminal, splash->clear);
 }
@@ -279,7 +279,7 @@ void splash_set_devmode(splash_t* splash)
 		splash->devmode = true;
 }
 
-int splash_num_images(splash_t *splash)
+int splash_num_images(splash_t* splash)
 {
 	if (splash)
 		return splash->num_images;

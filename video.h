@@ -26,7 +26,7 @@ typedef struct {
 typedef struct {
 	int32_t  count;
 	uint64_t map_offset;
-	uint32_t *map;
+	uint32_t* map;
 } video_lock_t;
 
 typedef struct _gamme_ramp_t{
@@ -39,13 +39,13 @@ gamma_ramp_t g_gamma_ramp;
 
 typedef struct {
 	int    fd;
-	drmVersion          driver_version;
+	drmVersion driver_version;
 	buffer_properties_t buffer_properties;
-	video_lock_t        lock;
-	drmModeRes         *drm_resources;
-	drmModePlaneResPtr  drm_plane_resources;
-	drmModeConnector   *main_monitor_connector;
-	drmModeCrtc *crtc;
+	video_lock_t lock;
+	drmModeRes* drm_resources;
+	drmModePlaneResPtr drm_plane_resources;
+	drmModeConnector* main_monitor_connector;
+	drmModeCrtc* crtc;
 	uint32_t buffer_handle;
 
 	uint32_t fb_id;
@@ -62,7 +62,7 @@ int32_t video_getpitch(video_t* video);
 int32_t video_getscaling(video_t* video);
 int32_t video_setmode(video_t* video);
 void video_release(video_t* video);
-bool video_set_gamma(video_t* video, const char *filename);
+bool video_set_gamma(video_t* video, const char* filename);
 void video_close(video_t*);
 uint32_t* video_lock(video_t* video);
 buffer_properties_t* video_get_buffer_properties(video_t* video);

@@ -20,12 +20,12 @@
 #include "util.h"
 #include "video.h"
 
-static drmModeConnector *find_first_connected_connector(int fd,
-							drmModeRes *resources)
+static drmModeConnector* find_first_connected_connector(int fd,
+							drmModeRes* resources)
 {
 	int i;
 	for (i = 0; i < resources->count_connectors; i++) {
-		drmModeConnector *connector;
+		drmModeConnector* connector;
 
 		connector = drmModeGetConnector(fd, resources->connectors[i]);
 		if (connector) {
@@ -39,12 +39,12 @@ static drmModeConnector *find_first_connected_connector(int fd,
 	return NULL;
 }
 
-static int kms_open(video_t *video)
+static int kms_open(video_t* video)
 {
 	int fd;
 	unsigned i;
 	char* dev_name;
-	drmModeRes *res = NULL;
+	drmModeRes* res = NULL;
 	int ret;
 	drmVersionPtr version;
 
@@ -111,12 +111,12 @@ static int kms_open(video_t *video)
 	return fd;
 }
 
-static drmModeCrtc *find_crtc_for_connector(int fd,
-					    drmModeRes *resources,
-					    drmModeConnector *connector)
+static drmModeCrtc* find_crtc_for_connector(int fd,
+					    drmModeRes* resources,
+					    drmModeConnector* connector)
 {
 	int i, j;
-	drmModeEncoder *encoder;
+	drmModeEncoder* encoder;
 	int32_t crtc;
 
 	if (connector->encoder_id)
@@ -151,13 +151,13 @@ static drmModeCrtc *find_crtc_for_connector(int fd,
 	return NULL;
 }
 
-static drmModeConnector *find_used_connector_by_type(int fd,
-						     drmModeRes *resources,
+static drmModeConnector* find_used_connector_by_type(int fd,
+						     drmModeRes* resources,
 						     unsigned type)
 {
 	int i;
 	for (i = 0; i < resources->count_connectors; i++) {
-		drmModeConnector *connector;
+		drmModeConnector* connector;
 
 		connector = drmModeGetConnector(fd, resources->connectors[i]);
 		if (connector) {
@@ -172,8 +172,8 @@ static drmModeConnector *find_used_connector_by_type(int fd,
 	return NULL;
 }
 
-static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
-					   uint32_t *mode_index)
+static drmModeConnector* find_main_monitor(int fd, drmModeRes* resources,
+					   uint32_t* mode_index)
 {
 	unsigned i = 0;
 	int modes;
@@ -186,7 +186,7 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
 		DRM_MODE_CONNECTOR_DSI,
 	};
 
-	drmModeConnector *main_monitor_connector = NULL;
+	drmModeConnector* main_monitor_connector = NULL;
 	do {
 		main_monitor_connector = find_used_connector_by_type(fd,
 								     resources,
@@ -220,8 +220,8 @@ static drmModeConnector *find_main_monitor(int fd, drmModeRes *resources,
 }
 
 static void disable_crtc(int fd,
-			 drmModeRes *resources,
-			 drmModeCrtc *crtc)
+			 drmModeRes* resources,
+			 drmModeCrtc* crtc)
 {
 	if (crtc) {
 		drmModeSetCrtc(fd, crtc->crtc_id, 0, // buffer_id
@@ -233,14 +233,14 @@ static void disable_crtc(int fd,
 }
 
 static void disable_non_main_crtcs(int fd,
-				   drmModeRes *resources,
+				   drmModeRes* resources,
 				   drmModeCrtc* main_crtc)
 {
 	int i;
 	drmModeCrtc* crtc;
 
 	for (i = 0; i < resources->count_connectors; i++) {
-		drmModeConnector *connector;
+		drmModeConnector* connector;
 
 		connector = drmModeGetConnector(fd, resources->connectors[i]);
 		crtc = find_crtc_for_connector(fd, resources, connector);
@@ -250,8 +250,8 @@ static void disable_non_main_crtcs(int fd,
 	}
 }
 
-static int video_buffer_create(video_t *video, drmModeCrtc *crtc, drmModeConnector *connector,
-			       int *pitch)
+static int video_buffer_create(video_t* video, drmModeCrtc* crtc, drmModeConnector* connector,
+			       int* pitch)
 {
 	struct drm_mode_create_dumb create_dumb;
 	int ret;
@@ -303,8 +303,8 @@ destroy_buffer:
 	return ret;
 }
 
-static bool parse_edid_dtd(uint8_t *dtd, drmModeModeInfo *mode,
-			   int32_t *hdisplay_size, int32_t *vdisplay_size) {
+static bool parse_edid_dtd(uint8_t* dtd, drmModeModeInfo* mode,
+			   int32_t* hdisplay_size, int32_t* vdisplay_size) {
 	int32_t clock;
 	int32_t hactive, hbl, hso, hsw, hsize;
 	int32_t vactive, vbl, vso, vsw, vsize;
@@ -338,12 +338,12 @@ static bool parse_edid_dtd(uint8_t *dtd, drmModeModeInfo *mode,
 	return true;
 }
 
-static bool parse_edid_dtd_display_size(video_t *video,
-					int32_t *hsize_mm, int32_t *vsize_mm) {
+static bool parse_edid_dtd_display_size(video_t* video,
+					int32_t* hsize_mm, int32_t* vsize_mm) {
 	int i;
-	drmModeModeInfo *mode = &video->crtc->mode;
+	drmModeModeInfo* mode = &video->crtc->mode;
 	for (i = 0; i < EDID_N_DTDS; i++) {
-		uint8_t *dtd = (uint8_t *)&video->edid[EDID_DTD_BASE + i * DTD_SIZE];
+		uint8_t* dtd = (uint8_t*)&video->edid[EDID_DTD_BASE + i * DTD_SIZE];
 		drmModeModeInfo dtd_mode;
 		int32_t hdisplay_size, vdisplay_size;
 		if (!parse_edid_dtd(dtd, &dtd_mode, &hdisplay_size, &vdisplay_size) ||
@@ -369,7 +369,7 @@ video_t* video_init()
 	int32_t width, height, scaling, pitch;
 	int i;
 	uint32_t selected_mode;
-	video_t *new_video = (video_t*)calloc(1, sizeof(video_t));
+	video_t* new_video = (video_t*)calloc(1, sizeof(video_t));
 	bool edid_found = false;
 	int32_t hsize_mm, vsize_mm;
 
@@ -577,7 +577,7 @@ void video_release(video_t* video)
 	drmDropMaster(video->fd);
 }
 
-void video_close(video_t *video)
+void video_close(video_t* video)
 {
 	struct drm_mode_destroy_dumb destroy_dumb;
 
@@ -633,7 +633,7 @@ void video_close(video_t *video)
 	free(video);
 }
 
-uint32_t* video_lock(video_t *video)
+uint32_t* video_lock(video_t* video)
 {
 	if (video->lock.count == 0) {
 		video->lock.map =
@@ -647,7 +647,7 @@ uint32_t* video_lock(video_t *video)
 	return video->lock.map;
 }
 
-void video_unlock(video_t *video)
+void video_unlock(video_t* video)
 {
 	if (video->lock.count > 0) {
 		video->lock.count--;
@@ -662,14 +662,14 @@ void video_unlock(video_t *video)
 	}
 }
 
-bool video_load_gamma_ramp(video_t *video, const char* filename)
+bool video_load_gamma_ramp(video_t* video, const char* filename)
 {
 	int i;
 	int r = 0;
 	unsigned char red[kGammaSize];
 	unsigned char green[kGammaSize];
 	unsigned char blue[kGammaSize];
-	gamma_ramp_t *ramp;
+	gamma_ramp_t* ramp;
 
 	FILE* f = fopen(filename, "rb");
 	if (f == NULL)
@@ -694,7 +694,7 @@ bool video_load_gamma_ramp(video_t *video, const char* filename)
 	return true;
 }
 
-bool video_set_gamma(video_t* video, const char *filename)
+bool video_set_gamma(video_t* video, const char* filename)
 {
 	bool status;
 	drmModeCrtcPtr mode;
@@ -717,27 +717,27 @@ bool video_set_gamma(video_t* video, const char *filename)
 	return drm_status == 0;
 }
 
-buffer_properties_t* video_get_buffer_properties(video_t *video)
+buffer_properties_t* video_get_buffer_properties(video_t* video)
 {
 	return &video->buffer_properties;
 }
 
-int32_t video_getwidth(video_t *video)
+int32_t video_getwidth(video_t* video)
 {
 	return video->buffer_properties.width;
 }
 
-int32_t video_getheight(video_t *video)
+int32_t video_getheight(video_t* video)
 {
 	return video->buffer_properties.height;
 }
 
-int32_t video_getpitch(video_t *video)
+int32_t video_getpitch(video_t* video)
 {
 	return video->buffer_properties.pitch;
 }
 
-int32_t video_getscaling(video_t *video)
+int32_t video_getscaling(video_t* video)
 {
 	return video->buffer_properties.scaling;
 }

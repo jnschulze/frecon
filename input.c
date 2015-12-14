@@ -28,7 +28,7 @@
 
 struct input_dev {
 	int fd;
-	char *path;
+	char* path;
 };
 
 struct keyboard_state {
@@ -51,15 +51,15 @@ struct keyboard_state {
  *  terminals - list of all terminals that have been created.
  */
 struct {
-	struct udev *udev;
-	struct udev_monitor *udev_monitor;
+	struct udev* udev;
+	struct udev_monitor* udev_monitor;
 	int udev_fd;
 	unsigned int ndevs;
-	struct input_dev *devs;
+	struct input_dev* devs;
 	struct keyboard_state kbd_state;
-	dbus_t *dbus;
-	uint32_t  current_terminal;
-	terminal_t *terminals[MAX_TERMINALS];
+	dbus_t* dbus;
+	uint32_t current_terminal;
+	terminal_t* terminals[MAX_TERMINALS];
 } input = {
 	.udev = NULL,
 	.udev_monitor = NULL,
@@ -106,10 +106,10 @@ static void report_user_activity(int activity_type)
 	}
 }
 
-static int input_special_key(struct input_key_event *ev)
+static int input_special_key(struct input_key_event* ev)
 {
 	unsigned int i;
-	terminal_t *terminal;
+	terminal_t* terminal;
 
 	uint32_t ignore_keys[] = {
 		BTN_TOUCH, // touchpad events
@@ -254,8 +254,8 @@ static int input_special_key(struct input_key_event *ev)
 	return 0;
 }
 
-static void input_get_keysym_and_unicode(struct input_key_event *event,
-		uint32_t *keysym, uint32_t *unicode)
+static void input_get_keysym_and_unicode(struct input_key_event* event,
+					 uint32_t* keysym, uint32_t* unicode)
 {
 	struct {
 		uint32_t code;
@@ -323,7 +323,7 @@ static void input_get_keysym_and_unicode(struct input_key_event *event,
 	*unicode = *keysym;
 }
 
-static int input_add(const char *devname)
+static int input_add(const char* devname)
 {
 	int ret = 0, fd = -1;
 	unsigned int i;
@@ -345,9 +345,9 @@ static int input_add(const char *devname)
 	if (fd < 0)
 		goto errorret;
 
-	ret = ioctl(fd, EVIOCGRAB, (void *) 1);
+	ret = ioctl(fd, EVIOCGRAB, (void*) 1);
 	if (!ret) {
-		ret = ioctl(fd, EVIOCGRAB, (void *) 0);
+		ret = ioctl(fd, EVIOCGRAB, (void*) 0);
 		if (ret)
 			LOG(ERROR,
 				"EVIOCGRAB succeeded but the corresponding ungrab failed: %m");
@@ -358,7 +358,7 @@ static int input_add(const char *devname)
 		goto closefd;
 	}
 
-	struct input_dev *newdevs =
+	struct input_dev* newdevs =
 	    realloc(input.devs, (input.ndevs + 1) * sizeof (struct input_dev));
 	if (!newdevs) {
 		ret = -ENOMEM;
@@ -381,7 +381,7 @@ errorret:
 	return ret;
 }
 
-static void input_remove(const char *devname)
+static void input_remove(const char* devname)
 {
 	if (!devname) {
 		return;
@@ -416,15 +416,15 @@ int input_init()
 	udev_monitor_enable_receiving(input.udev_monitor);
 	input.udev_fd = udev_monitor_get_fd(input.udev_monitor);
 
-	struct udev_enumerate *udev_enum;
-	struct udev_list_entry *devices, *deventry;
+	struct udev_enumerate* udev_enum;
+	struct udev_list_entry* devices, *deventry;
 	udev_enum = udev_enumerate_new(input.udev);
 	udev_enumerate_add_match_subsystem(udev_enum, "input");
 	udev_enumerate_scan_devices(udev_enum);
 	devices = udev_enumerate_get_list_entry(udev_enum);
 	udev_list_entry_foreach(deventry, devices) {
-		const char *syspath;
-		struct udev_device *dev;
+		const char* syspath;
+		struct udev_device* dev;
 		syspath = udev_list_entry_get_name(deventry);
 		dev = udev_device_new_from_syspath(input.udev, syspath);
 		input_add(udev_device_get_devnode(dev));
@@ -469,7 +469,7 @@ void input_set_dbus(dbus_t* dbus)
 	input.dbus = dbus;
 }
 
-int input_setfds(fd_set * read_set, fd_set * exception_set)
+int input_setfds(fd_set* read_set, fd_set* exception_set)
 {
 	unsigned int u;
 	int max = -1;
@@ -487,8 +487,8 @@ int input_setfds(fd_set * read_set, fd_set * exception_set)
 	return max;
 }
 
-struct input_key_event *input_get_event(fd_set * read_set,
-					fd_set * exception_set)
+struct input_key_event* input_get_event(fd_set* read_set,
+					fd_set* exception_set)
 {
 	unsigned int u;
 	struct input_event ev;
@@ -502,7 +502,7 @@ struct input_key_event *input_get_event(fd_set * read_set,
 	if (FD_ISSET(input.udev_fd, read_set)
 	    && !FD_ISSET(input.udev_fd, exception_set)) {
 		/* we got an udev notification */
-		struct udev_device *dev =
+		struct udev_device* dev =
 		    udev_monitor_receive_device(input.udev_monitor);
 		if (dev) {
 			if (!strcmp("add", udev_device_get_action(dev))) {
@@ -537,7 +537,7 @@ struct input_key_event *input_get_event(fd_set * read_set,
 			}
 
 			if (ev.type == EV_KEY) {
-				struct input_key_event *event =
+				struct input_key_event* event =
 				    malloc(sizeof (*event));
 				event->code = ev.code;
 				event->value = ev.value;
@@ -551,13 +551,13 @@ struct input_key_event *input_get_event(fd_set * read_set,
 
 int input_process(terminal_t* splash_term, uint32_t usec)
 {
-	terminal_t *terminal;
-	terminal_t *new_terminal;
+	terminal_t* terminal;
+	terminal_t* new_terminal;
 	fd_set read_set, exception_set;
 	int maxfd;
 	int sstat;
 	struct timeval tm;
-	struct timeval *ptm;
+	struct timeval* ptm;
 
 	terminal = input.terminals[input.current_terminal];
 
@@ -599,7 +599,7 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	if (term_exception(terminal, &exception_set))
 		return -1;
 
-	struct input_key_event *event;
+	struct input_key_event* event;
 	event = input_get_event(&read_set, &exception_set);
 	if (event) {
 		if (!input_special_key(event) && event->value) {
@@ -681,7 +681,7 @@ int input_run(bool standalone)
 	return 0;
 }
 
-void input_put_event(struct input_key_event *event)
+void input_put_event(struct input_key_event* event)
 {
 	free(event);
 }

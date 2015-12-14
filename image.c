@@ -16,24 +16,24 @@
 #include "util.h"
 
 typedef union {
-	uint32_t  *as_pixels;
-	png_byte  *as_png_bytes;
-	char      *address;
+	uint32_t* as_pixels;
+	png_byte* as_png_bytes;
+	char* address;
 } layout_t;
 
 struct _image_t {
-	char            *filename;
-	bool            use_offset;
-	bool            use_location;
-	int32_t         offset_x;
-	int32_t         offset_y;
-	uint32_t        location_x;
-	uint32_t        location_y;
-	uint32_t        duration;
-	layout_t        layout;
-	png_uint_32     width;
-	png_uint_32     height;
-	png_uint_32     pitch;
+	char* filename;
+	bool use_offset;
+	bool use_location;
+	int32_t offset_x;
+	int32_t offset_y;
+	uint32_t location_x;
+	uint32_t location_y;
+	uint32_t duration;
+	layout_t layout;
+	png_uint_32 width;
+	png_uint_32 height;
+	png_uint_32 pitch;
 };
 
 image_t* image_create()
@@ -44,7 +44,7 @@ image_t* image_create()
 	return image;
 }
 
-static void image_rgb(png_struct *png, png_row_info *row_info, png_byte *data)
+static void image_rgb(png_struct* png, png_row_info* row_info, png_byte* data)
 {
 	unsigned int i;
 
@@ -63,12 +63,12 @@ static void image_rgb(png_struct *png, png_row_info *row_info, png_byte *data)
 
 int image_load_image_from_file(image_t* image)
 {
-	FILE         *fp;
-	png_struct   *png;
-	png_info     *info;
-	png_uint_32   width, height, pitch, row;
-	int           bpp, color_type, interlace_mthd;
-	png_byte    **rows;
+	FILE* fp;
+	png_struct* png;
+	png_info* info;
+	png_uint_32 width, height, pitch, row;
+	int bpp, color_type, interlace_mthd;
+	png_byte** rows;
 
 	if (image->layout.address != NULL)
 		return 1;
@@ -152,10 +152,10 @@ int image_load_image_from_file(image_t* image)
 	return 0;
 }
 
-int image_show(image_t* image, video_t *video)
+int image_show(image_t* image, video_t* video)
 {
 	uint32_t j;
-	uint32_t *buffer;
+	uint32_t* buffer;
 	uint32_t startx, starty;
 	uint32_t pitch;
 
