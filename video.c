@@ -23,8 +23,7 @@
 static drmModeConnector* find_first_connected_connector(int fd,
 							drmModeRes* resources)
 {
-	int i;
-	for (i = 0; i < resources->count_connectors; i++) {
+	for (int i = 0; i < resources->count_connectors; i++) {
 		drmModeConnector* connector;
 
 		connector = drmModeGetConnector(fd, resources->connectors[i]);
@@ -155,8 +154,7 @@ static drmModeConnector* find_used_connector_by_type(int fd,
 						     drmModeRes* resources,
 						     unsigned type)
 {
-	int i;
-	for (i = 0; i < resources->count_connectors; i++) {
+	for (int i = 0; i < resources->count_connectors; i++) {
 		drmModeConnector* connector;
 
 		connector = drmModeGetConnector(fd, resources->connectors[i]);
@@ -340,9 +338,9 @@ static bool parse_edid_dtd(uint8_t* dtd, drmModeModeInfo* mode,
 
 static bool parse_edid_dtd_display_size(video_t* video,
 					int32_t* hsize_mm, int32_t* vsize_mm) {
-	int i;
 	drmModeModeInfo* mode = &video->crtc->mode;
-	for (i = 0; i < EDID_N_DTDS; i++) {
+
+	for (int i = 0; i < EDID_N_DTDS; i++) {
 		uint8_t* dtd = (uint8_t*)&video->edid[EDID_DTD_BASE + i * DTD_SIZE];
 		drmModeModeInfo dtd_mode;
 		int32_t hdisplay_size, vdisplay_size;
@@ -367,7 +365,6 @@ static bool parse_edid_dtd_display_size(video_t* video,
 video_t* video_init()
 {
 	int32_t width, height, scaling, pitch;
-	int i;
 	uint32_t selected_mode;
 	video_t* new_video = (video_t*)calloc(1, sizeof(video_t));
 	bool edid_found = false;
@@ -393,7 +390,7 @@ video_t* video_init()
 		goto fail;
 	}
 
-	for (i = 0; i < new_video->main_monitor_connector->count_props; i++) {
+	for (int i = 0; i < new_video->main_monitor_connector->count_props; i++) {
 		drmModePropertyPtr prop;
 		drmModePropertyBlobPtr blob_ptr;
 		prop = drmModeGetProperty(new_video->fd, new_video->main_monitor_connector->props[i]);
@@ -510,13 +507,12 @@ static int video_is_primary_plane(video_t* video, uint32_t plane_id)
 /* disable all planes except for primary on crtc we use */
 static void video_disable_non_primary_planes(video_t* video)
 {
-	uint32_t p;
 	int ret;
 
 	if (!video->drm_plane_resources)
 		return;
 
-	for (p = 0; p < video->drm_plane_resources->count_planes; p++) {
+	for (uint32_t p = 0; p < video->drm_plane_resources->count_planes; p++) {
 		drmModePlanePtr plane;
 		plane = drmModeGetPlane(video->fd,
 					video->drm_plane_resources->planes[p]);
@@ -664,14 +660,13 @@ void video_unlock(video_t* video)
 
 bool video_load_gamma_ramp(video_t* video, const char* filename)
 {
-	int i;
 	int r = 0;
 	unsigned char red[kGammaSize];
 	unsigned char green[kGammaSize];
 	unsigned char blue[kGammaSize];
 	gamma_ramp_t* ramp;
-
 	FILE* f = fopen(filename, "rb");
+
 	if (f == NULL)
 		return false;
 
@@ -685,7 +680,7 @@ bool video_load_gamma_ramp(video_t* video, const char* filename)
 	if (r != 3)
 		return false;
 
-	for (i = 0; i < kGammaSize; ++i) {
+	for (int i = 0; i < kGammaSize; ++i) {
 		ramp->red[i]   = (uint16_t)red[i] * 257;
 		ramp->green[i] = (uint16_t)green[i] * 257;
 		ramp->blue[i]  = (uint16_t)blue[i] * 257;

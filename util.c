@@ -66,12 +66,11 @@ void parse_location(char* loc_str, int* x, int* y)
 {
 	int count = 0;
 	char* savedptr;
-	char* token;
 	char* str;
 	int* results[] = {x, y};
 	long tmp;
 
-	for (token = str = loc_str; token != NULL; str = NULL) {
+	for (char* token = str = loc_str; token != NULL; str = NULL) {
 		if (count > 1)
 			break;
 
@@ -120,11 +119,10 @@ void parse_image_option(char* optionstr, char** name, char** val)
 {
 	char** result[2] = { name, val };
 	int count = 0;
-	char* token;
 	char* str;
 	char* savedptr;
 
-	for (token = str = optionstr; token != NULL; str = NULL) {
+	for (char* token = str = optionstr; token != NULL; str = NULL) {
 		if (count > 1)
 			break;
 

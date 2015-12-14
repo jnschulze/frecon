@@ -108,7 +108,6 @@ static void report_user_activity(int activity_type)
 
 static int input_special_key(struct input_key_event* ev)
 {
-	unsigned int i;
 	terminal_t* terminal;
 
 	uint32_t ignore_keys[] = {
@@ -130,7 +129,7 @@ static int input_special_key(struct input_key_event* ev)
 
 	terminal = input.terminals[input.current_terminal];
 
-	for (i = 0; i < ARRAY_SIZE(ignore_keys); i++)
+	for (unsigned int i = 0; i < ARRAY_SIZE(ignore_keys); i++)
 		if (ev->code == ignore_keys[i])
 			return 1;
 
@@ -326,7 +325,6 @@ static void input_get_keysym_and_unicode(struct input_key_event* event,
 static int input_add(const char* devname)
 {
 	int ret = 0, fd = -1;
-	unsigned int i;
 
 	/* for some reason every device has a null enumerations and notifications
 	   of every device come with NULL string first */
@@ -335,7 +333,7 @@ static int input_add(const char* devname)
 		goto errorret;
 	}
 	/* check for duplicates */
-	for (i = 0; i < input.ndevs; ++i) {
+	for (unsigned int i = 0; i < input.ndevs; ++i) {
 		if (strcmp(devname, input.devs[i].path) == 0) {
 			LOG(WARNING, "Skipping duplicate input device %s", devname);
 			ret = -EINVAL;
@@ -725,15 +723,13 @@ void input_destroy_splash_term()
 
 void input_set_current(terminal_t* terminal)
 {
-	int i;
-
 	if (!terminal) {
 		input.terminals[input.current_terminal] = NULL;
 		input.current_terminal = 0;
 		return;
 	}
 
-	for (i = 0; i < MAX_TERMINALS; i++) {
+	for (int i = 0; i < MAX_TERMINALS; i++) {
 		if (terminal == input.terminals[i]) {
 			input.current_terminal = i;
 			return;

@@ -71,7 +71,6 @@ int main(int argc, char* argv[])
 {
 	int ret;
 	int c;
-	int i;
 	int32_t x, y;
 	splash_t* splash;
 	dbus_t* dbus;
@@ -165,7 +164,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	for (i = optind; i < argc; i++)
+	for (int i = optind; i < argc; i++)
 		splash_add_image(splash, argv[i]);
 
 	/*

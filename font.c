@@ -138,6 +138,7 @@ static void scale_glyph(uint8_t* dst, const uint8_t* src, int scaling)
 static void prescale_font(int scaling)
 {
 	int glyph_count = sizeof(glyphs) / (GLYPH_BYTES_PER_ROW * GLYPH_HEIGHT);
+
 	glyph_size = GLYPH_BYTES_PER_ROW * GLYPH_HEIGHT * scaling * scaling;
 	if (!prescaled_glyphs)
 		prescaled_glyphs = (uint8_t*)calloc(glyph_count, glyph_size);
@@ -194,8 +195,8 @@ void font_render(uint32_t* dst_pointer, int dst_char_x, int dst_char_y,
 {
 	int dst_x = dst_char_x * GLYPH_WIDTH * font_scaling;
 	int dst_y = dst_char_y * GLYPH_HEIGHT * font_scaling;
-
 	int32_t glyph_index = code_point_to_glyph_index(ch);
+
 	if (glyph_index < 0) {
 		glyph_index = code_point_to_glyph_index(
 			UNICODE_REPLACEMENT_CHARACTER_CODE_POINT);
