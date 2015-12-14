@@ -150,7 +150,6 @@ handle_terminate(DBusConnection* connection, DBusMessage* message)
 	exit(EXIT_SUCCESS);
 }
 
-
 #define NUM_IMAGE_PARAMETERS     (2)
 static DBusHandlerResult
 handle_image(DBusConnection* connection, DBusMessage* message)
@@ -253,7 +252,6 @@ frecon_dbus_message_handler(DBusConnection* connection, DBusMessage* message, vo
 	}
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
 }
 
 static DBusObjectPathVTable

@@ -198,7 +198,6 @@ void image_release(image_t* image)
 		free(image->layout.address);
 		image->layout.address = NULL;
 	}
-
 }
 
 void image_destroy(image_t* image)
@@ -230,7 +229,7 @@ void image_set_offset(image_t* image, int32_t offset_x, int32_t offset_y)
 }
 
 void image_set_location(image_t* image,
-		uint32_t location_x, uint32_t location_y)
+			uint32_t location_x, uint32_t location_y)
 {
 	image->location_x = location_x;
 	image->location_y = location_y;

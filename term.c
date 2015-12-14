@@ -75,7 +75,7 @@ static int term_draw_cell(struct tsm_screen* screen, uint32_t id,
 	terminal_t* terminal = (terminal_t*)data;
 	uint32_t front_color, back_color;
 	uint8_t br, bb, bg;
-	uint32_t Y;
+	uint32_t luminance;
 
 	if (age && terminal->term->age && age <= terminal->term->age)
 		return 0;
@@ -84,9 +84,13 @@ static int term_draw_cell(struct tsm_screen* screen, uint32_t id,
 		br = (terminal->background >> 16) & 0xFF;
 		bg = (terminal->background >> 8) & 0xFF;
 		bb = (terminal->background) & 0xFF;
-		Y = (3*br + bb + 4*bg) >> 3;
+		luminance = (3 * br + bb + 4 * bg) >> 3;
 
-		if (Y > 128) {
+		/*
+		 * FIXME: black is chosen on a dark background, but it uses the
+		 * default color for light backgrounds
+		 */
+		if (luminance > 128) {
 			front_color = 0;
 			back_color = terminal->background;
 		} else {
@@ -128,7 +132,6 @@ void term_redraw(terminal_t* terminal)
 
 void term_key_event(terminal_t* terminal, uint32_t keysym, int32_t unicode)
 {
-
 	if (tsm_vte_handle_keyboard(terminal->term->vte, keysym, 0, 0, unicode))
 		tsm_screen_sb_reset(terminal->term->screen);
 

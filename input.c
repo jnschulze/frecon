@@ -327,6 +327,7 @@ static int input_add(const char* devname)
 {
 	int ret = 0, fd = -1;
 	unsigned int i;
+
 	/* for some reason every device has a null enumerations and notifications
 	   of every device come with NULL string first */
 	if (!devname) {
@@ -383,10 +384,11 @@ errorret:
 
 static void input_remove(const char* devname)
 {
-	if (!devname) {
-		return;
-	}
 	unsigned int u;
+
+	if (!devname)
+		return;
+
 	for (u = 0; u < input.ndevs; u++) {
 		if (!strcmp(devname, input.devs[u].path)) {
 			free(input.devs[u].path);
@@ -406,6 +408,7 @@ int input_init()
 	input.udev = udev_new();
 	if (!input.udev)
 		return -ENOENT;
+
 	input.udev_monitor = udev_monitor_new_from_netlink(input.udev, "udev");
 	if (!input.udev_monitor) {
 		udev_unref(input.udev);
@@ -446,6 +449,7 @@ int input_init()
 void input_close()
 {
 	unsigned int u;
+
 	for (u = 0; u < input.ndevs; u++) {
 		free(input.devs[u].path);
 		close(input.devs[u].fd);
@@ -473,6 +477,7 @@ int input_setfds(fd_set* read_set, fd_set* exception_set)
 {
 	unsigned int u;
 	int max = -1;
+
 	for (u = 0; u < input.ndevs; u++) {
 		FD_SET(input.devs[u].fd, read_set);
 		FD_SET(input.devs[u].fd, exception_set);
@@ -591,7 +596,6 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	sstat = select(maxfd, &read_set, NULL, &exception_set, ptm);
 	if (sstat == 0)
 		return 0;
-
 
 	if (input.dbus)
 		dbus_dispatch_io(input.dbus);
