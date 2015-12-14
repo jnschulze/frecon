@@ -287,6 +287,10 @@ dbus_t* dbus_init()
 	dbus_error_init(&err);
 
 	new_dbus = (dbus_t*)calloc(1, sizeof(*new_dbus));
+
+	if (!new_dbus)
+		return NULL;
+
 	new_dbus->fd = -1;
 
 	new_dbus->conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);

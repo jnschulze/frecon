@@ -83,11 +83,8 @@ int image_load_image_from_file(image_t* image)
 
 	png_init_io(png, fp);
 
-	if (setjmp(png_jmpbuf(png)) != 0) {
-		png_destroy_read_struct(&png, &info, NULL);
-		fclose(fp);
-		return 1;
-	}
+	if (setjmp(png_jmpbuf(png)) != 0)
+		goto fail;
 
 	png_read_info(png, info);
 	png_get_IHDR(png, info, &width, &height, &bpp, &color_type,
@@ -129,11 +126,17 @@ int image_load_image_from_file(image_t* image)
 	png_read_update_info(png, info);
 
 	rows = malloc(height * sizeof(*rows));
-	image->layout.address = malloc(height * pitch);
+	if (!rows)
+		goto fail;
 
-	for (row = 0; row < height; row++) {
-		rows[row] = &image->layout.as_png_bytes[row * pitch];
+	image->layout.address = malloc(height * pitch);
+	if (!image->layout.address) {
+		free(rows);
+		goto fail;
 	}
+
+	for (row = 0; row < height; row++)
+		rows[row] = &image->layout.as_png_bytes[row * pitch];
 
 	png_read_image(png, rows);
 	free(rows);
@@ -148,6 +151,11 @@ int image_load_image_from_file(image_t* image)
 	image->pitch = pitch;
 
 	return 0;
+
+fail:
+	png_destroy_read_struct(&png, &info, NULL);
+	fclose(fp);
+	return 1;
 }
 
 int image_show(image_t* image, video_t* video)

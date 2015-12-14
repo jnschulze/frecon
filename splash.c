@@ -53,7 +53,7 @@ splash_t* splash_init()
 	splash_t* splash;
 
 	splash = (splash_t*)calloc(1, sizeof(splash_t));
-	if (splash == NULL)
+	if (!splash)
 		return NULL;
 
 	splash->video = video_init();

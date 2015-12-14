@@ -366,9 +366,13 @@ video_t* video_init()
 {
 	int32_t width, height, scaling, pitch;
 	uint32_t selected_mode;
-	video_t* new_video = (video_t*)calloc(1, sizeof(video_t));
+	video_t* new_video;
 	bool edid_found = false;
 	int32_t hsize_mm, vsize_mm;
+
+	new_video = (video_t*)calloc(1, sizeof(video_t));
+	if (!new_video)
+		return NULL;
 
 	new_video->fd = kms_open(new_video);
 
