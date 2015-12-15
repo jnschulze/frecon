@@ -22,12 +22,12 @@ static const char kHandleUserActivityMethod[] = "HandleUserActivity";
 static const int kBrightnessTransitionGradual = 1;
 static const int kBrightnessTransitionInstant = 2;
 enum UserActivityType {
-  USER_ACTIVITY_OTHER = 0,
-  USER_ACTIVITY_BRIGHTNESS_UP_KEY_PRESS = 1,
-  USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS = 2,
-  USER_ACTIVITY_VOLUME_UP_KEY_PRESS = 3,
-  USER_ACTIVITY_VOLUME_DOWN_KEY_PRESS = 4,
-  USER_ACTIVITY_VOLUME_MUTE_KEY_PRESS = 5,
+	USER_ACTIVITY_OTHER = 0,
+	USER_ACTIVITY_BRIGHTNESS_UP_KEY_PRESS = 1,
+	USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS = 2,
+	USER_ACTIVITY_VOLUME_UP_KEY_PRESS = 3,
+	USER_ACTIVITY_VOLUME_DOWN_KEY_PRESS = 4,
+	USER_ACTIVITY_VOLUME_MUTE_KEY_PRESS = 5,
 };
 
 static const char kSessionManagerInterface[] = "org.chromium.SessionManagerInterface";
