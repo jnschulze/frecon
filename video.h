@@ -24,21 +24,21 @@ typedef struct {
 } buffer_properties_t;
 
 typedef struct {
-	int32_t  count;
+	int32_t count;
 	uint64_t map_offset;
 	uint32_t* map;
 } video_lock_t;
 
 typedef struct _gamme_ramp_t{
-	uint16_t    red[kGammaSize];
-	uint16_t    green[kGammaSize];
-	uint16_t    blue[kGammaSize];
+	uint16_t red[kGammaSize];
+	uint16_t green[kGammaSize];
+	uint16_t blue[kGammaSize];
 } gamma_ramp_t;
 
 gamma_ramp_t g_gamma_ramp;
 
 typedef struct {
-	int    fd;
+	int fd;
 	drmVersion driver_version;
 	buffer_properties_t buffer_properties;
 	video_lock_t lock;
