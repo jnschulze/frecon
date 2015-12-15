@@ -52,8 +52,7 @@ typedef struct {
 	bool    standalone;
 } commandflags_t;
 
-static
-void parse_offset(char* param, int32_t* x, int32_t* y)
+static void parse_offset(char* param, int32_t* x, int32_t* y)
 {
 	char* token;
 	char* saveptr;

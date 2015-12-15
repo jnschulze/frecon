@@ -66,11 +66,11 @@ static void __attribute__ ((noreturn)) term_run_child(terminal_t* terminal)
 }
 
 static int term_draw_cell(struct tsm_screen* screen, uint32_t id,
-				const uint32_t* ch, size_t len,
-				unsigned int cwidth, unsigned int posx,
-				unsigned int posy,
-				const struct tsm_screen_attr* attr,
-				tsm_age_t age, void* data)
+			  const uint32_t* ch, size_t len,
+			  unsigned int cwidth, unsigned int posx,
+			  unsigned int posy,
+			  const struct tsm_screen_attr* attr,
+			  tsm_age_t age, void* data)
 {
 	terminal_t* terminal = (terminal_t*)data;
 	uint32_t front_color, back_color;
@@ -183,8 +183,8 @@ static const char* sev2str(unsigned int sev)
 __attribute__((__format__ (__printf__, 7, 0)))
 #endif
 static void log_tsm(void* data, const char* file, int line, const char* fn,
-				const char* subs, unsigned int sev, const char* format,
-				va_list args)
+		    const char* subs, unsigned int sev, const char* format,
+		    va_list args)
 {
 	fprintf(stderr, "%s: %s: ", sev2str(sev), subs);
 	vfprintf(stderr, format, args);

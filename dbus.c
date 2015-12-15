@@ -35,8 +35,8 @@ struct _dbus_t {
 	} signal;
 };
 
-static DBusHandlerResult
-handle_switchvt(DBusConnection* connection, DBusMessage* message)
+static DBusHandlerResult handle_switchvt(DBusConnection* connection,
+					 DBusMessage* message)
 {
 	DBusMessage* reply;
 	DBusMessage* msg;
@@ -104,8 +104,8 @@ handle_switchvt(DBusConnection* connection, DBusMessage* message)
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-static DBusHandlerResult
-handle_makevt(DBusConnection* connection, DBusMessage* message)
+static DBusHandlerResult handle_makevt(DBusConnection* connection,
+				       DBusMessage* message)
 {
 	DBusMessage* reply;
 	DBusError error;
@@ -140,8 +140,8 @@ handle_makevt(DBusConnection* connection, DBusMessage* message)
 	return DBUS_HANDLER_RESULT_HANDLED;
 }
 
-static DBusHandlerResult
-handle_terminate(DBusConnection* connection, DBusMessage* message)
+static DBusHandlerResult handle_terminate(DBusConnection* connection,
+					  DBusMessage* message)
 {
 	DBusMessage* reply;
 
@@ -151,8 +151,8 @@ handle_terminate(DBusConnection* connection, DBusMessage* message)
 }
 
 #define NUM_IMAGE_PARAMETERS     (2)
-static DBusHandlerResult
-handle_image(DBusConnection* connection, DBusMessage* message)
+static DBusHandlerResult handle_image(DBusConnection* connection,
+				      DBusMessage* message)
 {
 	DBusMessage* reply;
 	DBusError error;
@@ -228,13 +228,13 @@ fail:
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-static void
-frecon_dbus_unregister(DBusConnection* connection, void* user_data)
+static void frecon_dbus_unregister(DBusConnection* connection, void* user_data)
 {
 }
 
-static DBusHandlerResult
-frecon_dbus_message_handler(DBusConnection* connection, DBusMessage* message, void* user_data)
+static DBusHandlerResult frecon_dbus_message_handler(DBusConnection* connection,
+						     DBusMessage* message,
+						     void* user_data)
 {
 	if (dbus_message_is_method_call(message,
 				kFreconDbusInterface, COMMAND_SWITCH_VT)) {
@@ -383,14 +383,14 @@ bool dbus_method_call1(dbus_t* dbus, const char* service_name,
 	return true;
 }
 
-static void
-dbus_path_unregister_function(DBusConnection* connection, void* user_data)
+static void dbus_path_unregister_function(DBusConnection* connection,
+					  void* user_data)
 {
 }
 
-static DBusHandlerResult
-dbus_message_function(DBusConnection* connection,
-		      DBusMessage* message, void* user_data)
+static DBusHandlerResult dbus_message_function(DBusConnection* connection,
+					       DBusMessage* message,
+					       void* user_data)
 {
 	dbus_t* dbus = (dbus_t*)user_data;
 
@@ -401,14 +401,10 @@ dbus_message_function(DBusConnection* connection,
 	return DBUS_HANDLER_RESULT_HANDLED;
 }
 
-bool dbus_signal_match_handler(
-		dbus_t* dbus,
-		const char* signal,
-		const char* path,
-		const char* interface,
-		const char* rule,
-		dbus_message_handler_t handler,
-		void* user_data)
+bool dbus_signal_match_handler(dbus_t* dbus, const char* signal,
+			       const char* path, const char* interface,
+			       const char* rule, dbus_message_handler_t handler,
+			       void* user_data)
 {
 	DBusError err;
 	dbus->signal.vtable.unregister_function = dbus_path_unregister_function;
