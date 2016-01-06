@@ -81,7 +81,6 @@ static int kms_open(video_t* video)
 	video->drm_resources = res;
 	version = drmGetVersion(fd);
 	if (version) {
-		drmFreeVersion(version);
 		LOG(INFO,
 				"Frecon using drm driver %s, version %d.%d, date(%s), desc(%s)",
 				version->name,
@@ -89,6 +88,7 @@ static int kms_open(video_t* video)
 				version->version_minor,
 				version->date,
 				version->desc);
+		drmFreeVersion(version);
 	}
 
 	video->drm_plane_resources = drmModeGetPlaneResources(fd);
