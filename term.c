@@ -191,10 +191,38 @@ static void log_tsm(void* data, const char* file, int line, const char* fn,
 	fprintf(stderr, "\n");
 }
 
+static int term_resize(terminal_t* term)
+{
+	uint32_t char_width, char_height;
+	int status;
+
+	font_init(video_getscaling(term->video));
+	font_get_size(&char_width, &char_height);
+
+	term->term->char_x = video_getwidth(term->video) / char_width;
+	term->term->char_y = video_getheight(term->video) / char_height;
+	term->term->pitch = video_getpitch(term->video);
+
+	status = tsm_screen_resize(term->term->screen,
+				   term->term->char_x, term->term->char_y);
+	if (status < 0) {
+		font_free();
+		return -1;
+	}
+
+	status = shl_pty_resize(term->term->pty, term->term->char_x,
+				term->term->char_y);
+	if (status < 0) {
+		font_free();
+		return -1;
+	}
+
+	return 0;
+}
+
 terminal_t* term_init(bool interactive, video_t* video)
 {
 	const int scrollback_size = 200;
-	uint32_t char_width, char_height;
 	int status;
 	terminal_t* new_terminal;
 
@@ -227,15 +255,6 @@ terminal_t* term_init(bool interactive, video_t* video)
 	else
 		new_terminal->exec = noninteractive_cmd_line;
 
-	font_init(video_getscaling(new_terminal->video));
-	font_get_size(&char_width, &char_height);
-
-	new_terminal->term->char_x =
-		video_getwidth(new_terminal->video) / char_width;
-	new_terminal->term->char_y =
-		video_getheight(new_terminal->video) / char_height;
-	new_terminal->term->pitch = video_getpitch(new_terminal->video);
-
 	status = tsm_screen_new(&new_terminal->term->screen,
 			log_tsm, new_terminal->term);
 	if (status < 0) {
@@ -260,8 +279,7 @@ terminal_t* term_init(bool interactive, video_t* video)
 	}
 
 	status = shl_pty_open(&new_terminal->term->pty,
-			term_read_cb, new_terminal, new_terminal->term->char_x,
-			new_terminal->term->char_y);
+			term_read_cb, new_terminal, 1, 1);
 
 	if (status < 0) {
 		term_close(new_terminal);
@@ -280,15 +298,7 @@ terminal_t* term_init(bool interactive, video_t* video)
 
 	new_terminal->term->pid = shl_pty_get_child(new_terminal->term->pty);
 
-	status = tsm_screen_resize(new_terminal->term->screen,
-			new_terminal->term->char_x, new_terminal->term->char_y);
-	if (status < 0) {
-		shl_pty_close(new_terminal->term->pty);
-		term_close(new_terminal);
-		return NULL;
-	}
-
-	status = shl_pty_resize(new_terminal->term->pty, new_terminal->term->char_x, new_terminal->term->char_y);
+	status = term_resize(new_terminal);
 	if (status < 0) {
 		shl_pty_close(new_terminal->term->pty);
 		term_close(new_terminal);
