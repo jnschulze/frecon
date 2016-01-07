@@ -166,6 +166,8 @@ int image_show(image_t* image, video_t* video)
 	uint32_t pitch;
 
 	buffer = video_lock(video);
+	if (buffer == NULL)
+		return -1;
 
 	if (image->use_offset && image->use_location) {
 		LOG(WARNING, "offset and location set, using location");
@@ -187,12 +189,9 @@ int image_show(image_t* image, video_t* video)
 
 	pitch = video_getpitch(video);
 
-	if (buffer != NULL) {
-		for (j = starty; j < starty + image->height; j++) {
-			memcpy(buffer + j * pitch/4 + startx,
-					image->layout.address + (j - starty)*image->pitch, image->pitch);
-		}
-	}
+	for (j = starty; j < starty + image->height; j++)
+		memcpy(buffer + j * pitch/4 + startx,
+				image->layout.address + (j - starty)*image->pitch, image->pitch);
 
 	video_unlock(video);
 	return 0;
