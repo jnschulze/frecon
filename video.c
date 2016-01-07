@@ -621,14 +621,17 @@ uint32_t* video_lock(video_t* video)
 			return NULL;
 		}
 	}
+	video->lock.count++;
+
 	return video->lock.map;
 }
 
 void video_unlock(video_t* video)
 {
-	if (video->lock.count > 0) {
+	if (video->lock.count > 0)
 		video->lock.count--;
-	}
+	else
+		LOG(ERROR, "video locking unbalanced");
 
 	if (video->lock.count == 0) {
 		struct drm_clip_rect clip_rect = {
