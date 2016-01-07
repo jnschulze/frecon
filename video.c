@@ -82,12 +82,12 @@ static int kms_open(video_t* video)
 	version = drmGetVersion(fd);
 	if (version) {
 		LOG(INFO,
-				"Frecon using drm driver %s, version %d.%d, date(%s), desc(%s)",
-				version->name,
-				version->version_major,
-				version->version_minor,
-				version->date,
-				version->desc);
+		    "Frecon using drm driver %s, version %d.%d, date(%s), desc(%s)",
+		    version->name,
+		    version->version_major,
+		    version->version_minor,
+		    version->date,
+		    version->desc);
 		drmFreeVersion(version);
 	}
 
@@ -209,10 +209,10 @@ static void disable_crtc(int fd,
 {
 	if (crtc) {
 		drmModeSetCrtc(fd, crtc->crtc_id, 0, // buffer_id
-						 0, 0,  // x,y
-						 NULL,  // connectors
-						 0,     // connector_count
-						 NULL); // mode
+			       0, 0,  // x,y
+			       NULL,  // connectors
+			       0,     // connector_count
+			       NULL); // mode
 	}
 }
 
@@ -533,11 +533,11 @@ int32_t video_setmode(video_t* video)
 		LOG(ERROR, "drmSetMaster failed: %m");
 
 	ret = drmModeSetCrtc(video->fd, video->crtc->crtc_id,
-					 video->fb_id,
-					 0, 0,  // x,y
-					 &video->main_monitor_connector->connector_id,
-					 1,  // connector_count
-					 &video->crtc->mode); // mode
+			     video->fb_id,
+			     0, 0,  // x,y
+			     &video->main_monitor_connector->connector_id,
+			     1,  // connector_count
+			     &video->crtc->mode); // mode
 
 	if (ret) {
 		LOG(ERROR, "Unable to set crtc: %m");
@@ -687,11 +687,11 @@ bool video_set_gamma(video_t* video, const char* filename)
 
 	mode = drmModeGetCrtc(video->fd, video->crtc->crtc_id);
 	drm_status = drmModeCrtcSetGamma(video->fd,
-			mode->crtc_id,
-			mode->gamma_size,
-			video->gamma_ramp.red,
-			video->gamma_ramp.green,
-			video->gamma_ramp.blue);
+					 mode->crtc_id,
+					 mode->gamma_size,
+					 video->gamma_ramp.red,
+					 video->gamma_ramp.green,
+					 video->gamma_ramp.blue);
 
 	return drm_status == 0;
 }
