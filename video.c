@@ -15,8 +15,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "dbus_interface.h"
 #include "dbus.h"
+#include "dbus_interface.h"
 #include "util.h"
 #include "video.h"
 
