@@ -62,13 +62,10 @@ splash_t* splash_init()
 		return NULL;
 	}
 
-	splash->terminal = input_create_splash_term(splash->video);
+	splash->terminal = term_create_splash_term(splash->video);
 	splash->loop_start = -1;
 	splash->default_duration = 25;
 	splash->loop_duration = 25;
-
-	// Hide the cursor on the splash screen
-	term_hide_cursor(splash->terminal);
 
 	return splash;
 }
@@ -80,7 +77,7 @@ int splash_destroy(splash_t* splash)
 		splash->terminal = NULL;
 	}
 	free(splash);
-	input_destroy_splash_term();
+	term_destroy_splash_term();
 	return 0;
 }
 

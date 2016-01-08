@@ -703,18 +703,6 @@ terminal_t* input_create_term(int vt)
 	return terminal;
 }
 
-terminal_t* input_create_splash_term(video_t* video)
-{
-	term_set_terminal(SPLASH_TERMINAL, term_init(false, video));
-
-	return term_get_terminal(SPLASH_TERMINAL);
-}
-
-void input_destroy_splash_term()
-{
-	term_set_terminal(SPLASH_TERMINAL, NULL);
-}
-
 void input_set_current(terminal_t* terminal)
 {
 	if (!terminal) {

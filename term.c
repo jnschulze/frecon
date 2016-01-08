@@ -467,12 +467,13 @@ void term_write_message(terminal_t* terminal, char* message)
 	}
 }
 
-void term_hide_cursor(terminal_t* terminal)
+static void term_hide_cursor(terminal_t* terminal)
 {
 	term_write_message(terminal, "\033[?25l");
 }
 
-void term_show_cursor(terminal_t* terminal)
+__attribute__ ((unused))
+static void term_show_cursor(terminal_t* terminal)
 {
 	term_write_message(terminal, "\033[?25h");
 }
@@ -491,3 +492,21 @@ void term_set_terminal(int num, terminal_t* terminal)
 {
 	terminals[num] = terminal;
 }
+
+terminal_t* term_create_splash_term(video_t* video)
+{
+	terminal_t* splash_terminal = term_init(false, video);
+	term_set_terminal(SPLASH_TERMINAL, splash_terminal);
+
+	// Hide the cursor on the splash screen
+	term_hide_cursor(splash_terminal);
+
+	return splash_terminal;
+}
+
+void term_destroy_splash_term()
+{
+	term_set_terminal(SPLASH_TERMINAL, NULL);
+}
+
+

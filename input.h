@@ -27,8 +27,6 @@ int input_setfds(fd_set* read_set, fd_set* exception_set);
 struct input_key_event* input_get_event(fd_set* read_fds, fd_set* exception_set);
 void input_put_event(struct input_key_event* event);
 terminal_t* input_create_term(int vt);
-terminal_t* input_create_splash_term(video_t* video);
-void input_destroy_splash_term();
 void input_set_current(terminal_t* terminal);
 unsigned int input_get_maxterminals();
 int input_process(terminal_t* terminal, uint32_t delay);

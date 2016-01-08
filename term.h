@@ -40,10 +40,10 @@ const char* term_get_ptsname(terminal_t* terminal);
 void term_set_background(terminal_t* term, uint32_t bg);
 int term_show_image(terminal_t* terminal, image_t* image);
 void term_write_message(terminal_t* terminal, char* message);
-void term_hide_cursor(terminal_t* terminal);
-void term_show_cursor(terminal_t* terminal);
 video_t* term_getvideo(terminal_t* terminal);
 terminal_t* term_get_terminal(int num);
 void term_set_terminal(int num, terminal_t* terminal);
+terminal_t* term_create_splash_term(video_t* video);
+void term_destroy_splash_term();
 
 #endif
