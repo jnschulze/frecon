@@ -60,7 +60,7 @@ static DBusHandlerResult handle_switchvt(DBusConnection* connection,
 	}
 
 	if (vt == 0) {
-		terminal = input_create_term(vt);
+		terminal = term_create_term(vt);
 		if (term_is_active(terminal)) {
 			term_deactivate(terminal);
 			msg = dbus_message_new_method_call(
@@ -84,7 +84,7 @@ static DBusHandlerResult handle_switchvt(DBusConnection* connection,
 		if (term_is_active(terminal))
 			term_deactivate(terminal);
 
-		terminal = input_create_term(vt);
+		terminal = term_create_term(vt);
 		if (term_is_valid(terminal)) {
 			msg = dbus_message_new_method_call(
 				kLibCrosServiceName,
@@ -128,7 +128,7 @@ static DBusHandlerResult handle_makevt(DBusConnection* connection,
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
-	terminal = input_create_term(vt);
+	terminal = term_create_term(vt);
 	reply_str = term_get_ptsname(terminal);
 
 	reply = dbus_message_new_method_return(message);

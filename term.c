@@ -493,6 +493,25 @@ void term_set_terminal(int num, terminal_t* terminal)
 	terminals[num] = terminal;
 }
 
+terminal_t* term_create_term(int vt)
+{
+	terminal_t* terminal;
+
+	terminal = term_get_terminal(vt - 1);
+	if (term_is_active(terminal))
+		return terminal;
+
+	if (terminal == NULL) {
+		term_set_terminal(vt - 1, term_init(false, NULL));
+		terminal = term_get_terminal(vt - 1);
+		if (!term_is_valid(terminal)) {
+			LOG(ERROR, "create_term: Term init failed");
+		}
+	}
+
+	return terminal;
+}
+
 terminal_t* term_create_splash_term(video_t* video)
 {
 	terminal_t* splash_terminal = term_init(false, video);
