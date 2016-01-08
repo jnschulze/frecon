@@ -10,6 +10,11 @@
 #include "image.h"
 #include "video.h"
 
+#define MAX_STD_TERMINALS     (3)
+#define NUM_SPLASH_TERMINAL   (1)
+#define MAX_TERMINALS         (MAX_STD_TERMINALS + NUM_SPLASH_TERMINAL)
+#define SPLASH_TERMINAL       (MAX_TERMINALS - 1)
+
 typedef struct _terminal_t terminal_t;
 terminal_t* term_init(bool interactive, video_t* video);
 void term_close(terminal_t* terminal);
@@ -39,5 +44,7 @@ void term_write_message(terminal_t* terminal, char* message);
 void term_hide_cursor(terminal_t* terminal);
 void term_show_cursor(terminal_t* terminal);
 video_t* term_getvideo(terminal_t* terminal);
+terminal_t* term_get_terminal(int num);
+void term_set_terminal(int num, terminal_t* terminal);
 
 #endif

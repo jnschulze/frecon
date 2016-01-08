@@ -19,6 +19,8 @@
 #include "util.h"
 #include "video.h"
 
+static terminal_t* terminals[MAX_TERMINALS];
+
 struct term {
 	struct tsm_screen* screen;
 	struct tsm_vte* vte;
@@ -478,4 +480,14 @@ void term_show_cursor(terminal_t* terminal)
 video_t* term_getvideo(terminal_t* terminal)
 {
 	return terminal->video;
+}
+
+terminal_t* term_get_terminal(int num)
+{
+	return terminals[num];
+}
+
+void term_set_terminal(int num, terminal_t* terminal)
+{
+	terminals[num] = terminal;
 }

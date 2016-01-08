@@ -21,11 +21,6 @@
 #include "keysym.h"
 #include "util.h"
 
-#define MAX_STD_TERMINALS     (3)
-#define NUM_SPLASH_TERMINAL   (1)
-#define MAX_TERMINALS         (MAX_STD_TERMINALS + NUM_SPLASH_TERMINAL)
-#define SPLASH_TERMINAL       (MAX_TERMINALS - 1)
-
 struct input_dev {
 	int fd;
 	char* path;
@@ -48,7 +43,6 @@ struct keyboard_state {
  *  kbd_state - tracks modifier keys that are pressed.
  *  dbus - where to send dbus events.
  *  current_terminal - the currently selected terminal.
- *  terminals - list of all terminals that have been created.
  */
 struct {
 	struct udev* udev;
@@ -59,7 +53,6 @@ struct {
 	struct keyboard_state kbd_state;
 	dbus_t* dbus;
 	uint32_t current_terminal;
-	terminal_t* terminals[MAX_TERMINALS];
 } input = {
 	.udev = NULL,
 	.udev_monitor = NULL,
@@ -127,7 +120,7 @@ static int input_special_key(struct input_key_event* ev)
 		BTN_TASK
 	};
 
-	terminal = input.terminals[input.current_terminal];
+	terminal = term_get_terminal(input.current_terminal);
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(ignore_keys); i++)
 		if (ev->code == ignore_keys[i])
@@ -155,22 +148,22 @@ static int input_special_key(struct input_key_event* ev)
 		if (input.kbd_state.shift_state && ev->value) {
 			switch (ev->code) {
 			case KEY_PAGEUP:
-				term_page_up(input.terminals[input.current_terminal]);
+				term_page_up(terminal);
 				return 1;
 			case KEY_PAGEDOWN:
-				term_page_down(input.terminals[input.current_terminal]);
+				term_page_down(terminal);
 				return 1;
 			case KEY_UP:
 				if (input.kbd_state.search_state)
-					term_page_up(input.terminals[input.current_terminal]);
+					term_page_up(terminal);
 				else
-					term_line_up(input.terminals[input.current_terminal]);
+					term_line_up(terminal);
 				return 1;
 			case KEY_DOWN:
 				if (input.kbd_state.search_state)
-					term_page_down(input.terminals[input.current_terminal]);
+					term_page_down(terminal);
 				else
-					term_line_down(input.terminals[input.current_terminal]);
+					term_line_down(terminal);
 				return 1;
 			}
 		}
@@ -210,8 +203,8 @@ static int input_special_key(struct input_key_event* ev)
 		if (ev->code == KEY_F1) {
 			if (term_is_active(terminal)) {
 				term_deactivate(terminal);
-				if (input.terminals[SPLASH_TERMINAL] != NULL) {
-					term_activate(input.terminals[SPLASH_TERMINAL]);
+				if (term_get_terminal(SPLASH_TERMINAL) != NULL) {
+					term_activate(term_get_terminal(SPLASH_TERMINAL));
 				} else {
 					if (input.dbus != NULL)
 						(void)dbus_method_call0(input.dbus,
@@ -231,19 +224,19 @@ static int input_special_key(struct input_key_event* ev)
 			if (term_is_active(terminal))
 				term_deactivate(terminal);
 			input.current_terminal = ev->code - KEY_F2;
-			terminal = input.terminals[input.current_terminal];
+			terminal = term_get_terminal(input.current_terminal);
 			if (terminal == NULL) {
-				input.terminals[input.current_terminal] =
-					term_init(true, NULL);
+				term_set_terminal(input.current_terminal,
+						  term_init(true, NULL));
 				terminal =
-					input.terminals[input.current_terminal];
+					term_get_terminal(input.current_terminal);
 				term_activate(terminal);
 				if (!term_is_valid(terminal)) {
 					LOG(ERROR, "Term init failed");
 					return 1;
 				}
 			}
-			term_activate(input.terminals[input.current_terminal]);
+			term_activate(term_get_terminal(input.current_terminal));
 		}
 
 		return 1;
@@ -562,7 +555,7 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	struct timeval tm;
 	struct timeval* ptm;
 
-	terminal = input.terminals[input.current_terminal];
+	terminal = term_get_terminal(input.current_terminal);
 
 	FD_ZERO(&read_set);
 	FD_ZERO(&exception_set);
@@ -577,10 +570,10 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	maxfd = MAX(maxfd, input_setfds(&read_set, &exception_set)) + 1;
 
 	for (int i = 0; i < MAX_TERMINALS; i++) {
-		if (term_is_valid(input.terminals[i])) {
-			term_add_fd(input.terminals[i], &read_set, &exception_set);
-			maxfd = MAX(maxfd, term_fd(input.terminals[i])) + 1;
-			term_dispatch_io(input.terminals[i], &read_set);
+		if (term_is_valid(term_get_terminal(i))) {
+			term_add_fd(term_get_terminal(i), &read_set, &exception_set);
+			maxfd = MAX(maxfd, term_fd(term_get_terminal(i))) + 1;
+			term_dispatch_io(term_get_terminal(i), &read_set);
 		}
 	}
 
@@ -608,7 +601,7 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 			uint32_t keysym, unicode;
 			// current_terminal can possibly change during
 			// execution of input_special_key
-			terminal = input.terminals[input.current_terminal];
+			terminal = term_get_terminal(input.current_terminal);
 			if (term_is_active(terminal)) {
 				// Only report user activity when the terminal is active
 				report_user_activity(USER_ACTIVITY_OTHER);
@@ -622,26 +615,26 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	}
 
 	for (int i = 0; i < MAX_TERMINALS; i++) {
-		if (term_is_valid(input.terminals[i])) {
-			term_add_fd(input.terminals[i], &read_set, &exception_set);
-			term_dispatch_io(input.terminals[i], &read_set);
+		if (term_is_valid(term_get_terminal(i))) {
+			term_add_fd(term_get_terminal(i), &read_set, &exception_set);
+			term_dispatch_io(term_get_terminal(i), &read_set);
 		}
 	}
 
 	if (term_is_valid(terminal)) {
 		if (term_is_child_done(terminal)) {
-			if (terminal == input.terminals[SPLASH_TERMINAL]) {
+			if (terminal == term_get_terminal(SPLASH_TERMINAL)) {
 				/*
 				 * Note: reference is not lost because it is still referenced
 				 * by the splash_t structure which will ultimately destroy
 				 * it, once it's safe to do so
 				 */
-				input.terminals[SPLASH_TERMINAL] = NULL;
+				term_set_terminal(SPLASH_TERMINAL, NULL);
 				return -1;
 			}
-			input.terminals[input.current_terminal] =
-				term_init(true, term_getvideo(terminal));
-			new_terminal = input.terminals[input.current_terminal];
+			term_set_terminal(input.current_terminal,
+					  term_init(true, term_getvideo(terminal)));
+			new_terminal = term_get_terminal(input.current_terminal);
 			if (!term_is_valid(new_terminal)) {
 				return -1;
 			}
@@ -667,8 +660,8 @@ int input_run(bool standalone)
 				kReleaseDisplayOwnership);
 		}
 
-		input.terminals[input.current_terminal] = term_init(true, NULL);
-		terminal = input.terminals[input.current_terminal];
+		term_set_terminal(input.current_terminal, term_init(true, NULL));
+		terminal = term_get_terminal(input.current_terminal);
 		term_activate(terminal);
 	}
 
@@ -693,15 +686,15 @@ terminal_t* input_create_term(int vt)
 	terminal_t* terminal;
 
 	if (vt == 0)
-		return input.terminals[input.current_terminal];
+		return term_get_terminal(input.current_terminal);
 
-	terminal = input.terminals[vt-1];
+	terminal = term_get_terminal(vt - 1);
 	if (term_is_active(terminal))
 		return terminal;
 
 	if (terminal == NULL) {
-		input.terminals[vt-1] = term_init(false, NULL);
-		terminal = input.terminals[vt-1];
+		term_set_terminal(vt - 1, term_init(false, NULL));
+		terminal = term_get_terminal(vt - 1);
 		if (!term_is_valid(terminal)) {
 			LOG(ERROR, "create_term: Term init failed");
 		}
@@ -712,25 +705,26 @@ terminal_t* input_create_term(int vt)
 
 terminal_t* input_create_splash_term(video_t* video)
 {
-	input.terminals[SPLASH_TERMINAL] = term_init(false, video);
-	return input.terminals[SPLASH_TERMINAL];
+	term_set_terminal(SPLASH_TERMINAL, term_init(false, video));
+
+	return term_get_terminal(SPLASH_TERMINAL);
 }
 
 void input_destroy_splash_term()
 {
-	input.terminals[SPLASH_TERMINAL] = NULL;
+	term_set_terminal(SPLASH_TERMINAL, NULL);
 }
 
 void input_set_current(terminal_t* terminal)
 {
 	if (!terminal) {
-		input.terminals[input.current_terminal] = NULL;
+		term_set_terminal(input.current_terminal, NULL);
 		input.current_terminal = 0;
 		return;
 	}
 
 	for (int i = 0; i < MAX_TERMINALS; i++) {
-		if (terminal == input.terminals[i]) {
+		if (terminal == term_get_terminal(i)) {
 			input.current_terminal = i;
 			return;
 		}
