@@ -120,7 +120,7 @@ static int term_draw_cell(struct tsm_screen* screen, uint32_t id,
 	return 0;
 }
 
-void term_redraw(terminal_t* terminal)
+static void term_redraw(terminal_t* terminal)
 {
 	uint32_t* video_buffer;
 	video_buffer = video_lock(terminal->video);
