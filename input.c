@@ -685,9 +685,6 @@ terminal_t* input_create_term(int vt)
 {
 	terminal_t* terminal;
 
-	if (vt == 0)
-		return term_get_terminal(input.current_terminal);
-
 	terminal = term_get_terminal(vt - 1);
 	if (term_is_active(terminal))
 		return terminal;
@@ -701,6 +698,11 @@ terminal_t* input_create_term(int vt)
 	}
 
 	return terminal;
+}
+
+terminal_t* input_get_current_term()
+{
+	return term_get_terminal(input.current_terminal);
 }
 
 void input_set_current(terminal_t* terminal)

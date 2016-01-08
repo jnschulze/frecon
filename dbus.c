@@ -80,7 +80,7 @@ static DBusHandlerResult handle_switchvt(DBusConnection* connection,
 		 * given term is active, then de-activate the
 		 * current terminal
 		 */
-		terminal = input_create_term(0);
+		terminal = input_get_current_term();
 		if (term_is_active(terminal))
 			term_deactivate(terminal);
 
@@ -207,7 +207,7 @@ static DBusHandlerResult handle_image(DBusConnection* connection,
 		goto fail;
 	}
 
-	terminal = input_create_term(0);
+	terminal = input_get_current_term();
 	if (!terminal)
 		goto fail;
 
