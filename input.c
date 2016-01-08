@@ -328,7 +328,7 @@ static int input_add(const char* devname)
 	/* check for duplicates */
 	for (unsigned int i = 0; i < input.ndevs; ++i) {
 		if (strcmp(devname, input.devs[i].path) == 0) {
-			LOG(WARNING, "Skipping duplicate input device %s", devname);
+			LOG(INFO, "Skipping duplicate input device %s", devname);
 			ret = -EINVAL;
 			goto errorret;
 		}
