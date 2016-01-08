@@ -720,8 +720,3 @@ void input_set_current(terminal_t* terminal)
 		}
 	}
 }
-
-unsigned int input_get_maxterminals()
-{
-	return MAX_STD_TERMINALS;
-}

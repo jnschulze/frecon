@@ -54,7 +54,7 @@ static DBusHandlerResult handle_switchvt(DBusConnection* connection,
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
-	if (vt > input_get_maxterminals()) {
+	if (vt > term_get_max_terminals()) {
 		LOG(ERROR, "SwtichVT: invalid terminal");
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
@@ -123,7 +123,7 @@ static DBusHandlerResult handle_makevt(DBusConnection* connection,
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
-	if ((vt < 1) || (vt > input_get_maxterminals())) {
+	if ((vt < 1) || (vt > term_get_max_terminals())) {
 		LOG(ERROR, "SwtichVT: invalid terminal");
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}

@@ -29,7 +29,6 @@ void input_put_event(struct input_key_event* event);
 terminal_t* input_create_term(int vt);
 terminal_t* input_get_current_term();
 void input_set_current(terminal_t* terminal);
-unsigned int input_get_maxterminals();
 int input_process(terminal_t* terminal, uint32_t delay);
 
 #endif

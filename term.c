@@ -509,4 +509,8 @@ void term_destroy_splash_term()
 	term_set_terminal(SPLASH_TERMINAL, NULL);
 }
 
+unsigned int term_get_max_terminals()
+{
+	return MAX_STD_TERMINALS;
+}
 

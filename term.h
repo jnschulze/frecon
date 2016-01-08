@@ -45,5 +45,6 @@ terminal_t* term_get_terminal(int num);
 void term_set_terminal(int num, terminal_t* terminal);
 terminal_t* term_create_splash_term(video_t* video);
 void term_destroy_splash_term();
+unsigned int term_get_max_terminals();
 
 #endif
