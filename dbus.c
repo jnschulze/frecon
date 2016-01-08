@@ -442,7 +442,7 @@ void dbus_destroy(dbus_t* dbus)
 		free(dbus);
 }
 
-void dbus_add_fd(dbus_t* dbus, fd_set* read_set, fd_set* exception_set)
+int dbus_add_fds(dbus_t* dbus, fd_set* read_set, fd_set* exception_set)
 {
 	if (dbus->fd < 0)
 		dbus->fd = dbus_watch_get_unix_fd(dbus->watch);
@@ -451,12 +451,6 @@ void dbus_add_fd(dbus_t* dbus, fd_set* read_set, fd_set* exception_set)
 		FD_SET(dbus->fd, read_set);
 		FD_SET(dbus->fd, exception_set);
 	}
-}
-
-int dbus_get_fd(dbus_t* dbus)
-{
-	if (dbus->fd < 0)
-		dbus->fd = dbus_watch_get_unix_fd(dbus->watch);
 
 	return dbus->fd;
 }

@@ -464,7 +464,7 @@ void input_set_dbus(dbus_t* dbus)
 	input.dbus = dbus;
 }
 
-int input_setfds(fd_set* read_set, fd_set* exception_set)
+int input_add_fds(fd_set* read_set, fd_set* exception_set)
 {
 	unsigned int u;
 	int max = -1;
@@ -560,20 +560,18 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	FD_ZERO(&read_set);
 	FD_ZERO(&exception_set);
 
-	if (input.dbus) {
-		dbus_add_fd(input.dbus, &read_set, &exception_set);
-		maxfd = dbus_get_fd(input.dbus) + 1;
-	} else {
+	if (input.dbus)
+		maxfd = dbus_add_fds(input.dbus, &read_set, &exception_set) + 1;
+	else
 		maxfd = 0;
-	}
 
-	maxfd = MAX(maxfd, input_setfds(&read_set, &exception_set)) + 1;
+	maxfd = MAX(maxfd, input_add_fds(&read_set, &exception_set)) + 1;
 
 	for (int i = 0; i < MAX_TERMINALS; i++) {
 		if (term_is_valid(term_get_terminal(i))) {
-			term_add_fd(term_get_terminal(i), &read_set, &exception_set);
-			maxfd = MAX(maxfd, term_fd(term_get_terminal(i))) + 1;
-			term_dispatch_io(term_get_terminal(i), &read_set);
+			terminal_t* current_term = term_get_terminal(i);
+			maxfd = MAX(maxfd, term_add_fds(current_term, &read_set, &exception_set)) + 1;
+			term_dispatch_io(current_term, &read_set);
 		}
 	}
 
@@ -616,8 +614,9 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 
 	for (int i = 0; i < MAX_TERMINALS; i++) {
 		if (term_is_valid(term_get_terminal(i))) {
-			term_add_fd(term_get_terminal(i), &read_set, &exception_set);
-			term_dispatch_io(term_get_terminal(i), &read_set);
+			terminal_t* current_term = term_get_terminal(i);
+			maxfd = MAX(maxfd, term_add_fds(current_term, &read_set, &exception_set)) + 1;
+			term_dispatch_io(current_term, &read_set);
 		}
 	}
 

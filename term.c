@@ -430,14 +430,18 @@ bool term_is_active(terminal_t* terminal)
 	return false;
 }
 
-void term_add_fd(terminal_t* terminal, fd_set* read_set, fd_set* exception_set)
+int term_add_fds(terminal_t* terminal, fd_set* read_set, fd_set* exception_set)
 {
+	int maxfd = 0;
+
 	if (term_is_valid(terminal)) {
 		if (terminal->term->pty_bridge >= 0) {
+			maxfd = MAX(maxfd, terminal->term->pty_bridge);
 			FD_SET(terminal->term->pty_bridge, read_set);
 			FD_SET(terminal->term->pty_bridge, exception_set);
 		}
 	}
+	return maxfd;
 }
 
 const char* term_get_ptsname(terminal_t* terminal)
