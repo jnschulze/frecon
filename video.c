@@ -696,11 +696,6 @@ bool video_set_gamma(video_t* video, const char* filename)
 	return drm_status == 0;
 }
 
-buffer_properties_t* video_get_buffer_properties(video_t* video)
-{
-	return &video->buffer_properties;
-}
-
 int32_t video_getwidth(video_t* video)
 {
 	return video->buffer_properties.width;

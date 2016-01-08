@@ -64,7 +64,6 @@ void video_release(video_t* video);
 bool video_set_gamma(video_t* video, const char* filename);
 void video_close(video_t*);
 uint32_t* video_lock(video_t* video);
-buffer_properties_t* video_get_buffer_properties(video_t* video);
 void video_unlock(video_t* video);
 void video_addref(video_t* video);
 void video_delref(video_t* video);
