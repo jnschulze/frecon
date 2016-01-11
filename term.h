@@ -18,7 +18,6 @@
 typedef struct _terminal_t terminal_t;
 terminal_t* term_init(bool interactive, video_t* video);
 void term_close(terminal_t* terminal);
-void term_set_dbus(terminal_t* terminal, dbus_t* dbus);
 void term_close(terminal_t* terminal);
 void term_key_event(terminal_t* terminal, uint32_t keysym, int32_t unicode);
 bool term_is_child_done(terminal_t* terminal);

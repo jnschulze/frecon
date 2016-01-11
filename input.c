@@ -41,7 +41,6 @@ struct keyboard_state {
  *  ndevs - number of input devices.
  *  devs - input devices to listen to.
  *  kbd_state - tracks modifier keys that are pressed.
- *  dbus - where to send dbus events.
  *  current_terminal - the currently selected terminal.
  */
 struct {
@@ -51,7 +50,6 @@ struct {
 	unsigned int ndevs;
 	struct input_dev* devs;
 	struct keyboard_state kbd_state;
-	dbus_t* dbus;
 	uint32_t current_terminal;
 } input = {
 	.udev = NULL,
@@ -59,45 +57,8 @@ struct {
 	.udev_fd = -1,
 	.ndevs = 0,
 	.devs = NULL,
-	.dbus = NULL,
 	.current_terminal = 0
 };
-
-static void report_user_activity(int activity_type)
-{
-	dbus_bool_t allow_off = false;
-	if (!input.dbus)
-		return;
-
-	dbus_method_call1(input.dbus, kPowerManagerServiceName,
-			kPowerManagerServicePath,
-			kPowerManagerInterface,
-			kHandleUserActivityMethod,
-			DBUS_TYPE_INT32, &activity_type);
-
-	switch (activity_type) {
-		case USER_ACTIVITY_BRIGHTNESS_UP_KEY_PRESS:
-				(void)dbus_method_call0(input.dbus,
-					kPowerManagerServiceName,
-					kPowerManagerServicePath,
-					kPowerManagerInterface,
-					kIncreaseScreenBrightnessMethod);
-				break;
-		case USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS:
-				/*
-				 * Shouldn't allow the screen to go
-				 * completely off while frecon is active
-				 * so passing false to allow_off
-				 */
-				(void)dbus_method_call1(input.dbus,
-					kPowerManagerServiceName,
-					kPowerManagerServicePath,
-					kPowerManagerInterface,
-					kDecreaseScreenBrightnessMethod,
-					DBUS_TYPE_BOOLEAN, &allow_off);
-				break;
-	}
-}
 
 static int input_special_key(struct input_key_event* ev)
 {
@@ -180,8 +141,8 @@ static int input_special_key(struct input_key_event* ev)
 					break;
 				case KEY_F6:
 				case KEY_F7:
-					report_user_activity(USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS -
-							(ev->code - KEY_F6));
+					dbus_report_user_activity(USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS -
+								(ev->code - KEY_F6));
 					break;
 				case KEY_F8:
 				case KEY_F9:
@@ -206,21 +167,11 @@ static int input_special_key(struct input_key_event* ev)
 				if (term_get_terminal(SPLASH_TERMINAL) != NULL) {
 					term_activate(term_get_terminal(SPLASH_TERMINAL));
 				} else {
-					if (input.dbus != NULL)
-						(void)dbus_method_call0(input.dbus,
-							kLibCrosServiceName,
-							kLibCrosServicePath,
-							kLibCrosServiceInterface,
-							kTakeDisplayOwnership);
+					dbus_take_display_ownership();
 				}
 			}
 		} else if ((ev->code >= KEY_F2) && (ev->code < KEY_F2 + MAX_STD_TERMINALS)) {
-			if (input.dbus != NULL)
-				(void)dbus_method_call0(input.dbus,
-					kLibCrosServiceName,
-					kLibCrosServicePath,
-					kLibCrosServiceInterface,
-					kReleaseDisplayOwnership);
+			dbus_release_display_ownership();
 			if (term_is_active(terminal))
 				term_deactivate(terminal);
 			input.current_terminal = ev->code - KEY_F2;
@@ -455,13 +406,8 @@ void input_close()
 	input.udev = NULL;
 	input.udev_fd = -1;
 
-	dbus_destroy(input.dbus);
+	dbus_destroy();
 
-}
-
-void input_set_dbus(dbus_t* dbus)
-{
-	input.dbus = dbus;
 }
 
 int input_add_fds(fd_set* read_set, fd_set* exception_set)
@@ -560,10 +506,7 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	FD_ZERO(&read_set);
 	FD_ZERO(&exception_set);
 
-	if (input.dbus)
-		maxfd = dbus_add_fds(input.dbus, &read_set, &exception_set) + 1;
-	else
-		maxfd = 0;
+	maxfd = dbus_add_fds(&read_set, &exception_set) + 1;
 
 	maxfd = MAX(maxfd, input_add_fds(&read_set, &exception_set)) + 1;
 
@@ -586,8 +529,7 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	if (sstat == 0)
 		return 0;
 
-	if (input.dbus)
-		dbus_dispatch_io(input.dbus);
+	dbus_dispatch_io();
 
 	if (term_exception(terminal, &exception_set))
 		return -1;
@@ -602,7 +544,7 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 			terminal = term_get_terminal(input.current_terminal);
 			if (term_is_active(terminal)) {
 				// Only report user activity when the terminal is active
-				report_user_activity(USER_ACTIVITY_OTHER);
+				dbus_report_user_activity(USER_ACTIVITY_OTHER);
 				input_get_keysym_and_unicode(
 					event, &keysym, &unicode);
 				term_key_event(terminal,
@@ -651,14 +593,7 @@ int input_run(bool standalone)
 	int status;
 
 	if (standalone) {
-		if (input.dbus) {
-			(void)dbus_method_call0(input.dbus,
-				kLibCrosServiceName,
-				kLibCrosServicePath,
-				kLibCrosServiceInterface,
-				kReleaseDisplayOwnership);
-		}
-
+		dbus_take_display_ownership();
 		term_set_terminal(input.current_terminal, term_init(true, NULL));
 		terminal = term_get_terminal(input.current_terminal);
 		term_activate(terminal);

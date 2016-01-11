@@ -11,7 +11,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include "dbus_interface.h"
 #include "font.h"
 #include "input.h"
 #include "shl_pty.h"
@@ -37,7 +36,6 @@ struct _terminal_t {
 	uint32_t background;
 	bool background_valid;
 	video_t* video;
-	dbus_t* dbus;
 	struct term* term;
 	bool active;
 	char** exec;
@@ -328,11 +326,6 @@ void term_deactivate(terminal_t* terminal)
 
 	terminal->active = false;
 	video_release(terminal->video);
-}
-
-void term_set_dbus(terminal_t* term, dbus_t* dbus)
-{
-	term->dbus = dbus;
 }
 
 void term_close(terminal_t* term)

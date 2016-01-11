@@ -72,7 +72,6 @@ int main(int argc, char* argv[])
 	int c;
 	int32_t x, y;
 	splash_t* splash;
-	dbus_t* dbus;
 	commandflags_t command_flags;
 
 	/* Handle resolution special before splash init */
@@ -174,13 +173,12 @@ int main(int argc, char* argv[])
 	 * it creates the dbus object and then passes it back to the caller
 	 * who can then pass it to the other objects that need it
 	 */
-	dbus = NULL;
 	if (command_flags.standalone == false) {
 		splash_present_term_file(splash);
 		daemonize();
 	}
 	if (splash_num_images(splash) > 0) {
-		ret = splash_run(splash, &dbus);
+		ret = splash_run(splash);
 		if (ret) {
 			LOG(ERROR, "splash_run failed: %d", ret);
 			return EXIT_FAILURE;
@@ -193,10 +191,9 @@ int main(int argc, char* argv[])
 	 * there are no splash screen images), then go ahead and create
 	 * it now
 	 */
-	if (dbus == NULL) {
-		dbus = dbus_init();
+	if (!dbus_is_initialized()) {
+		dbus_init();
 	}
-	input_set_dbus(dbus);
 
 	ret = input_run(command_flags.standalone);
 

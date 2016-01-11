@@ -20,20 +20,15 @@
 
 #define DBUS_DEFAULT_DELAY             3000
 
+typedef struct _dbus_t dbus_t;
+
 struct _dbus_t {
 	DBusConnection* conn;
-	int terminate;
 	DBusWatch* watch;
 	int fd;
-	struct {
-		DBusObjectPathVTable vtable;
-		const char* interface;
-		const char* signal;
-		const char* rule;
-		void* user_data;
-		dbus_message_handler_t signal_handler;
-	} signal;
 };
+
+static dbus_t *dbus = NULL;
 
 static DBusHandlerResult handle_switchvt(DBusConnection* connection,
 					 DBusMessage* message)
@@ -277,7 +272,12 @@ static void toggle_watch(DBusWatch* w, void* data)
 {
 }
 
-dbus_t* dbus_init()
+bool dbus_is_initialized(void)
+{
+	return !!dbus;
+}
+
+bool dbus_init()
 {
 	dbus_t* new_dbus;
 	DBusError err;
@@ -289,7 +289,7 @@ dbus_t* dbus_init()
 	new_dbus = (dbus_t*)calloc(1, sizeof(*new_dbus));
 
 	if (!new_dbus)
-		return NULL;
+		return false;
 
 	new_dbus->fd = -1;
 
@@ -297,7 +297,7 @@ dbus_t* dbus_init()
 	if (dbus_error_is_set(&err)) {
 		LOG(ERROR, "Cannot get dbus connection");
 		free(new_dbus);
-		return NULL;
+		return false;
 	}
 
 	result = dbus_bus_request_name(new_dbus->conn, kFreconDbusInterface,
@@ -326,14 +326,20 @@ dbus_t* dbus_init()
 
 	dbus_connection_set_exit_on_disconnect(new_dbus->conn, FALSE);
 
-	return new_dbus;
+	dbus = new_dbus;
+	return true;
 }
 
-bool dbus_method_call0(dbus_t* dbus, const char* service_name,
-		       const char* service_path, const char* service_interface,
-		       const char* method)
+static bool dbus_method_call0(const char* service_name,
+			      const char* service_path,
+			      const char* service_interface,
+			      const char* method)
 {
-	DBusMessage *msg = NULL;
+	DBusMessage* msg = NULL;
+	if (!dbus) {
+		LOG(ERROR, "dbus not initialized");
+		return false;
+	}
 
 	msg = dbus_message_new_method_call(service_name,
 			service_path, service_interface, method);
@@ -353,11 +359,16 @@ bool dbus_method_call0(dbus_t* dbus, const char* service_name,
 	return true;
 }
 
-bool dbus_method_call1(dbus_t* dbus, const char* service_name,
-		       const char* service_path, const char* service_interface,
-		       const char* method, int arg_type, void* param)
+static bool dbus_method_call1(const char* service_name,
+			      const char* service_path,
+			      const char* service_interface,
+			      const char* method, int arg_type, void* param)
 {
-	DBusMessage *msg = NULL;
+	DBusMessage* msg = NULL;
+	if (!dbus) {
+		LOG(ERROR, "dbus not initialized");
+		return false;
+	}
 
 	msg = dbus_message_new_method_call(service_name,
 			service_path, service_interface, method);
@@ -383,54 +394,7 @@ bool dbus_method_call1(dbus_t* dbus, const char* service_name,
 	return true;
 }
 
-static void dbus_path_unregister_function(DBusConnection* connection,
-					  void* user_data)
-{
-}
-
-static DBusHandlerResult dbus_message_function(DBusConnection* connection,
-					       DBusMessage* message,
-					       void* user_data)
-{
-	dbus_t* dbus = (dbus_t*)user_data;
-
-	if (dbus_message_is_signal(message, dbus->signal.interface,
-				dbus->signal.signal)) {
-		dbus->signal.signal_handler(dbus, dbus->signal.user_data);
-	}
-	return DBUS_HANDLER_RESULT_HANDLED;
-}
-
-bool dbus_signal_match_handler(dbus_t* dbus, const char* signal,
-			       const char* path, const char* interface,
-			       const char* rule, dbus_message_handler_t handler,
-			       void* user_data)
-{
-	DBusError err;
-	dbus->signal.vtable.unregister_function = dbus_path_unregister_function;
-	dbus->signal.vtable.message_function = dbus_message_function;
-	dbus->signal.signal_handler = handler;
-	dbus->signal.signal = signal;
-	dbus->signal.user_data = user_data;
-	dbus->signal.interface = interface;
-
-	if (!dbus_connection_register_object_path(dbus->conn, path,
-				&dbus->signal.vtable, dbus)) {
-		LOG(ERROR, "register_object_path failed");
-		return false;
-	}
-
-	dbus_error_init(&err);
-	dbus_bus_add_match(dbus->conn, rule, &err);
-	if (dbus_error_is_set(&err)) {
-		LOG(ERROR, "add_match failed: %s", err.message);
-		return false;
-	}
-
-	return true;
-}
-
-void dbus_destroy(dbus_t* dbus)
+void dbus_destroy(void)
 {
 	/* FIXME - not sure what the right counterpart to
 	 * dbus_bus_get() is, unref documentation is rather
@@ -438,12 +402,17 @@ void dbus_destroy(dbus_t* dbus)
 	 * clean up properly here
 	 */
 	/* dbus_connection_unref(dbus->conn); */
-	if (dbus)
+	if (dbus) {
 		free(dbus);
+		dbus = NULL;
+	}
 }
 
-int dbus_add_fds(dbus_t* dbus, fd_set* read_set, fd_set* exception_set)
+int dbus_add_fds(fd_set* read_set, fd_set* exception_set)
 {
+	if (!dbus)
+		return -1;
+
 	if (dbus->fd < 0)
 		dbus->fd = dbus_watch_get_unix_fd(dbus->watch);
 
@@ -455,11 +424,69 @@ int dbus_add_fds(dbus_t* dbus, fd_set* read_set, fd_set* exception_set)
 	return dbus->fd;
 }
 
-void dbus_dispatch_io(dbus_t* dbus)
+void dbus_dispatch_io(void)
 {
+	if (!dbus)
+		return;
+
 	dbus_watch_handle(dbus->watch, DBUS_WATCH_READABLE);
 	while (dbus_connection_get_dispatch_status(dbus->conn)
 			== DBUS_DISPATCH_DATA_REMAINS) {
 		dbus_connection_dispatch(dbus->conn);
 	}
 }
+
+void dbus_report_user_activity(int activity_type)
+{
+	dbus_bool_t allow_off = false;
+	if (!dbus)
+		return;
+
+	dbus_method_call1(kPowerManagerServiceName,
+			kPowerManagerServicePath,
+			kPowerManagerInterface,
+			kHandleUserActivityMethod,
+			DBUS_TYPE_INT32, &activity_type);
+
+	switch (activity_type) {
+		case USER_ACTIVITY_BRIGHTNESS_UP_KEY_PRESS:
+				(void)dbus_method_call0(kPowerManagerServiceName,
+					kPowerManagerServicePath,
+					kPowerManagerInterface,
+					kIncreaseScreenBrightnessMethod);
+				break;
+		case USER_ACTIVITY_BRIGHTNESS_DOWN_KEY_PRESS:
+				/*
+				 * Shouldn't allow the screen to go
+				 * completely off while frecon is active
+				 * so passing false to allow_off
+				 */
+				(void)dbus_method_call1(kPowerManagerServiceName,
+					kPowerManagerServicePath,
+					kPowerManagerInterface,
+					kDecreaseScreenBrightnessMethod,
+					DBUS_TYPE_BOOLEAN, &allow_off);
+				break;
+	}
+}
+
+void dbus_take_display_ownership(void)
+{
+	if (!dbus)
+		return;
+	(void)dbus_method_call0(kLibCrosServiceName,
+				kLibCrosServicePath,
+				kLibCrosServiceInterface,
+				kTakeDisplayOwnership);
+}
+
+void dbus_release_display_ownership(void)
+{
+	if (!dbus)
+		return;
+	(void)dbus_method_call0(kLibCrosServiceName,
+				kLibCrosServicePath,
+				kLibCrosServiceInterface,
+				kReleaseDisplayOwnership);
+}
+

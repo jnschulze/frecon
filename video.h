@@ -10,7 +10,6 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include "dbus.h"
 #include "edid_utils.h"
 
 #define kGammaSize         (256)

@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include "dbus.h"
 #include "dbus_interface.h"
 #include "image.h"
 #include "input.h"
@@ -37,7 +38,6 @@ struct _splash_t {
 	splash_frame_t image_frames[MAX_SPLASH_IMAGES];
 	bool terminated;
 	bool devmode;
-	dbus_t* dbus;
 	int32_t loop_start;
 	uint32_t loop_duration;
 	uint32_t default_duration;
@@ -120,7 +120,7 @@ static void splash_clear_screen(splash_t* splash)
 	term_set_background(splash->terminal, splash->clear);
 }
 
-int splash_run(splash_t* splash, dbus_t** dbus)
+int splash_run(splash_t* splash)
 {
 	int i;
 	int status;
@@ -202,12 +202,9 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 	video_release(splash->video);
 	video_unlock(splash->video);
 
-	if (dbus != NULL) {
-		do {
-			*dbus = dbus_init();
-			usleep(DBUS_WAIT_DELAY);
-		} while (*dbus == NULL);
-		splash_set_dbus(splash, *dbus);
+	while (!dbus_is_initialized()) {
+		dbus_init();
+		usleep(DBUS_WAIT_DELAY);
 	}
 
 	if (splash->devmode) {
@@ -240,13 +237,7 @@ int splash_run(splash_t* splash, dbus_t** dbus)
 		exit(EXIT_SUCCESS);
 	}
 
-	if (splash->dbus) {
-		(void)dbus_method_call0(splash->dbus,
-			kLibCrosServiceName,
-			kLibCrosServicePath,
-			kLibCrosServiceInterface,
-			kTakeDisplayOwnership);
-	}
+	dbus_take_display_ownership();
 
 	/*
 	 * Finally, wait until chrome has drawn on top of the splash.  In dev mode,
@@ -262,12 +253,6 @@ void splash_set_offset(splash_t* splash, int32_t x, int32_t y)
 		splash->offset_x = x;
 		splash->offset_y = y;
 	}
-}
-
-void splash_set_dbus(splash_t* splash, dbus_t* dbus)
-{
-	if (splash)
-		splash->dbus = dbus;
 }
 
 void splash_set_devmode(splash_t* splash)
