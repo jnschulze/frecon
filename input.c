@@ -514,7 +514,6 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 		if (term_is_valid(term_get_terminal(i))) {
 			terminal_t* current_term = term_get_terminal(i);
 			maxfd = MAX(maxfd, term_add_fds(current_term, &read_set, &exception_set)) + 1;
-			term_dispatch_io(current_term, &read_set);
 		}
 	}
 
@@ -557,7 +556,6 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	for (int i = 0; i < MAX_TERMINALS; i++) {
 		if (term_is_valid(term_get_terminal(i))) {
 			terminal_t* current_term = term_get_terminal(i);
-			maxfd = MAX(maxfd, term_add_fds(current_term, &read_set, &exception_set)) + 1;
 			term_dispatch_io(current_term, &read_set);
 		}
 	}
