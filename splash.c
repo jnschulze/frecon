@@ -174,7 +174,7 @@ int splash_run(splash_t* splash)
 			LOG(WARNING, "term_show_image failed: %d", status);
 			break;
 		}
-		status = input_process(splash->terminal, 1);
+		status = input_process(1);
 		if (status != 0) {
 			LOG(WARNING, "input_process failed: %d", status);
 			break;
@@ -194,7 +194,7 @@ int splash_run(splash_t* splash)
 		image_destroy(splash->image_frames[i].image);
 	}
 
-	input_set_current(NULL);
+	term_set_current_to(NULL);
 
 	/*
 	 * Now Chrome can take over

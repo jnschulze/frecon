@@ -41,7 +41,6 @@ struct keyboard_state {
  *  ndevs - number of input devices.
  *  devs - input devices to listen to.
  *  kbd_state - tracks modifier keys that are pressed.
- *  current_terminal - the currently selected terminal.
  */
 struct {
 	struct udev* udev;
@@ -50,14 +49,12 @@ struct {
 	unsigned int ndevs;
 	struct input_dev* devs;
 	struct keyboard_state kbd_state;
-	uint32_t current_terminal;
 } input = {
 	.udev = NULL,
 	.udev_monitor = NULL,
 	.udev_fd = -1,
 	.ndevs = 0,
 	.devs = NULL,
-	.current_terminal = 0
 };
 
 static int input_special_key(struct input_key_event* ev)
@@ -81,7 +78,7 @@ static int input_special_key(struct input_key_event* ev)
 		BTN_TASK
 	};
 
-	terminal = term_get_terminal(input.current_terminal);
+	terminal = term_get_current_terminal();
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(ignore_keys); i++)
 		if (ev->code == ignore_keys[i])
@@ -174,20 +171,19 @@ static int input_special_key(struct input_key_event* ev)
 			dbus_release_display_ownership();
 			if (term_is_active(terminal))
 				term_deactivate(terminal);
-			input.current_terminal = ev->code - KEY_F2;
-			terminal = term_get_terminal(input.current_terminal);
+			term_set_current(ev->code - KEY_F2);
+			terminal = term_get_current_terminal();
 			if (terminal == NULL) {
-				term_set_terminal(input.current_terminal,
-						  term_init(true, NULL));
+				term_set_current_terminal(term_init(true, NULL));
 				terminal =
-					term_get_terminal(input.current_terminal);
+					term_get_current_terminal();
 				term_activate(terminal);
 				if (!term_is_valid(terminal)) {
 					LOG(ERROR, "Term init failed");
 					return 1;
 				}
 			}
-			term_activate(term_get_terminal(input.current_terminal));
+			term_activate(term_get_current_terminal());
 		}
 
 		return 1;
@@ -491,7 +487,12 @@ struct input_key_event* input_get_event(fd_set* read_set,
 	return NULL;
 }
 
-int input_process(terminal_t* splash_term, uint32_t usec)
+void input_put_event(struct input_key_event* event)
+{
+	free(event);
+}
+
+int input_process(uint32_t usec)
 {
 	terminal_t* terminal;
 	terminal_t* new_terminal;
@@ -501,7 +502,7 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 	struct timeval tm;
 	struct timeval* ptm;
 
-	terminal = term_get_terminal(input.current_terminal);
+	terminal = term_get_current_terminal();
 
 	FD_ZERO(&read_set);
 	FD_ZERO(&exception_set);
@@ -540,7 +541,7 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 			uint32_t keysym, unicode;
 			// current_terminal can possibly change during
 			// execution of input_special_key
-			terminal = term_get_terminal(input.current_terminal);
+			terminal = term_get_current_terminal();
 			if (term_is_active(terminal)) {
 				// Only report user activity when the terminal is active
 				dbus_report_user_activity(USER_ACTIVITY_OTHER);
@@ -571,9 +572,8 @@ int input_process(terminal_t* splash_term, uint32_t usec)
 				term_set_terminal(SPLASH_TERMINAL, NULL);
 				return -1;
 			}
-			term_set_terminal(input.current_terminal,
-					  term_init(true, term_getvideo(terminal)));
-			new_terminal = term_get_terminal(input.current_terminal);
+			term_set_current_terminal(term_init(true, term_getvideo(terminal)));
+			new_terminal = term_get_current_terminal();
 			if (!term_is_valid(new_terminal)) {
 				return -1;
 			}
@@ -592,13 +592,13 @@ int input_run(bool standalone)
 
 	if (standalone) {
 		dbus_take_display_ownership();
-		term_set_terminal(input.current_terminal, term_init(true, NULL));
-		terminal = term_get_terminal(input.current_terminal);
+		term_set_current_terminal(term_init(true, NULL));
+		terminal = term_get_current_terminal();
 		term_activate(terminal);
 	}
 
 	while (1) {
-		status = input_process(NULL, 0);
+		status = input_process(0);
 		if (status != 0) {
 			LOG(ERROR, "input process returned %d", status);
 			break;
@@ -606,30 +606,4 @@ int input_run(bool standalone)
 	}
 
 	return 0;
-}
-
-void input_put_event(struct input_key_event* event)
-{
-	free(event);
-}
-
-terminal_t* input_get_current_term()
-{
-	return term_get_terminal(input.current_terminal);
-}
-
-void input_set_current(terminal_t* terminal)
-{
-	if (!terminal) {
-		term_set_terminal(input.current_terminal, NULL);
-		input.current_terminal = 0;
-		return;
-	}
-
-	for (int i = 0; i < MAX_TERMINALS; i++) {
-		if (terminal == term_get_terminal(i)) {
-			input.current_terminal = i;
-			return;
-		}
-	}
 }

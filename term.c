@@ -19,6 +19,7 @@
 #include "video.h"
 
 static terminal_t* terminals[MAX_TERMINALS];
+static uint32_t current_terminal = 0;
 
 struct term {
 	struct tsm_screen* screen;
@@ -313,7 +314,7 @@ terminal_t* term_init(bool interactive, video_t* video)
 
 void term_activate(terminal_t* terminal)
 {
-	input_set_current(terminal);
+	term_set_current_to(terminal);
 	terminal->active = true;
 	video_setmode(terminal->video);
 	term_redraw(terminal);
@@ -530,3 +531,42 @@ unsigned int term_get_max_terminals()
 	return MAX_STD_TERMINALS;
 }
 
+void term_set_current(uint32_t t)
+{
+	if (t >= MAX_TERMINALS)
+		LOG(ERROR, "set_current: larger than max");
+	else
+		current_terminal = t;
+}
+
+uint32_t term_get_current(void)
+{
+	return current_terminal;
+}
+
+terminal_t *term_get_current_terminal(void)
+{
+	return terminals[current_terminal];
+}
+
+void term_set_current_terminal(terminal_t *terminal)
+{
+	terminals[current_terminal] = terminal;
+}
+
+void term_set_current_to(terminal_t* terminal)
+{
+	if (!terminal) {
+		terminals[current_terminal] = NULL;
+		current_terminal = 0;
+		return;
+	}
+
+	for (int i = 0; i < MAX_TERMINALS; i++) {
+		if (terminal == terminals[i]) {
+			current_terminal = i;
+			return;
+		}
+	}
+	LOG(ERROR, "set_current_to: terminal not in array");
+}

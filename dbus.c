@@ -9,7 +9,6 @@
 #include "dbus.h"
 #include "dbus_interface.h"
 #include "image.h"
-#include "input.h"
 #include "term.h"
 #include "util.h"
 
@@ -75,7 +74,7 @@ static DBusHandlerResult handle_switchvt(DBusConnection* connection,
 		 * given term is active, then de-activate the
 		 * current terminal
 		 */
-		terminal = input_get_current_term();
+		terminal = term_get_current_terminal();
 		if (term_is_active(terminal))
 			term_deactivate(terminal);
 
@@ -202,7 +201,7 @@ static DBusHandlerResult handle_image(DBusConnection* connection,
 		goto fail;
 	}
 
-	terminal = input_get_current_term();
+	terminal = term_get_current_terminal();
 	if (!terminal)
 		goto fail;
 

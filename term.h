@@ -46,5 +46,10 @@ terminal_t* term_create_term(int vt);
 terminal_t* term_create_splash_term(video_t* video);
 void term_destroy_splash_term();
 unsigned int term_get_max_terminals();
+void term_set_current(uint32_t t);
+uint32_t term_get_current(void);
+terminal_t *term_get_current_terminal(void);
+void term_set_current_terminal(terminal_t *terminal);
+void term_set_current_to(terminal_t* terminal);
 
 #endif
