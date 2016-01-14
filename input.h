@@ -12,17 +12,9 @@
 #include "term.h"
 #include "video.h"
 
-struct input_key_event {
-	uint16_t code;
-	unsigned char value;
-};
-
 int input_init();
 void input_close();
 int input_add_fds(fd_set* read_set, fd_set* exception_set);
-struct input_key_event* input_get_event(fd_set* read_fds, fd_set* exception_set);
-void input_put_event(struct input_key_event* event);
-int input_process(uint32_t usec);
-int input_run(bool standalone);
+void input_dispatch_io(fd_set* read_set, fd_set* exception_set);
 
 #endif

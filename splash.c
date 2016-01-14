@@ -17,6 +17,7 @@
 #include "dbus_interface.h"
 #include "image.h"
 #include "input.h"
+#include "main.h"
 #include "splash.h"
 #include "term.h"
 #include "util.h"
@@ -174,7 +175,7 @@ int splash_run(splash_t* splash)
 			LOG(WARNING, "term_show_image failed: %d", status);
 			break;
 		}
-		status = input_process(1);
+		status = main_process_events(1);
 		if (status != 0) {
 			LOG(WARNING, "input_process failed: %d", status);
 			break;

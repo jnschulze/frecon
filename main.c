@@ -13,7 +13,9 @@
 #include <unistd.h>
 
 #include "dbus.h"
+#include "dbus_interface.h"
 #include "input.h"
+#include "main.h"
 #include "splash.h"
 #include "term.h"
 #include "util.h"
@@ -65,6 +67,105 @@ static void parse_offset(char* param, int32_t* x, int32_t* y)
 	if (token)
 		*y = strtol(token, NULL, 0);
 }
+
+int main_process_events(uint32_t usec)
+{
+	terminal_t* terminal;
+	terminal_t* new_terminal;
+	fd_set read_set, exception_set;
+	int maxfd;
+	int sstat;
+	struct timeval tm;
+	struct timeval* ptm;
+
+	terminal = term_get_current_terminal();
+
+	FD_ZERO(&read_set);
+	FD_ZERO(&exception_set);
+
+	maxfd = dbus_add_fds(&read_set, &exception_set) + 1;
+
+	maxfd = MAX(maxfd, input_add_fds(&read_set, &exception_set)) + 1;
+
+	for (int i = 0; i < MAX_TERMINALS; i++) {
+		if (term_is_valid(term_get_terminal(i))) {
+			terminal_t* current_term = term_get_terminal(i);
+			maxfd = MAX(maxfd, term_add_fds(current_term, &read_set, &exception_set)) + 1;
+		}
+	}
+
+	if (usec) {
+		ptm = &tm;
+		tm.tv_sec = 0;
+		tm.tv_usec = usec;
+	} else
+		ptm = NULL;
+
+	sstat = select(maxfd, &read_set, NULL, &exception_set, ptm);
+	if (sstat == 0)
+		return 0;
+
+	dbus_dispatch_io();
+
+	if (term_exception(terminal, &exception_set))
+		return -1;
+
+	input_dispatch_io(&read_set, &exception_set);
+
+	for (int i = 0; i < MAX_TERMINALS; i++) {
+		if (term_is_valid(term_get_terminal(i))) {
+			terminal_t* current_term = term_get_terminal(i);
+			term_dispatch_io(current_term, &read_set);
+		}
+	}
+
+	if (term_is_valid(terminal)) {
+		if (term_is_child_done(terminal)) {
+			if (terminal == term_get_terminal(SPLASH_TERMINAL)) {
+				/*
+				 * Note: reference is not lost because it is still referenced
+				 * by the splash_t structure which will ultimately destroy
+				 * it, once it's safe to do so
+				 */
+				term_set_terminal(SPLASH_TERMINAL, NULL);
+				return -1;
+			}
+			term_set_current_terminal(term_init(true, term_getvideo(terminal)));
+			new_terminal = term_get_current_terminal();
+			if (!term_is_valid(new_terminal)) {
+				return -1;
+			}
+			term_activate(new_terminal);
+			term_close(terminal);
+		}
+	}
+
+	return 0;
+}
+
+int main_loop(bool standalone)
+{
+	terminal_t* terminal;
+	int status;
+
+	if (standalone) {
+		dbus_take_display_ownership();
+		term_set_current_terminal(term_init(true, NULL));
+		terminal = term_get_current_terminal();
+		term_activate(terminal);
+	}
+
+	while (1) {
+		status = main_process_events(0);
+		if (status != 0) {
+			LOG(ERROR, "input process returned %d", status);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -195,9 +296,10 @@ int main(int argc, char* argv[])
 		dbus_init();
 	}
 
-	ret = input_run(command_flags.standalone);
+	ret = main_loop(command_flags.standalone);
 
 	input_close();
+	dbus_destroy();
 
 	return ret;
 }
