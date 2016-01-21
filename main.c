@@ -73,7 +73,7 @@ int main_process_events(uint32_t usec)
 	terminal_t* terminal;
 	terminal_t* new_terminal;
 	fd_set read_set, exception_set;
-	int maxfd;
+	int maxfd = -1;
 	int sstat;
 	struct timeval tm;
 	struct timeval* ptm;
@@ -83,14 +83,14 @@ int main_process_events(uint32_t usec)
 	FD_ZERO(&read_set);
 	FD_ZERO(&exception_set);
 
-	maxfd = dbus_add_fds(&read_set, &exception_set) + 1;
+	dbus_add_fds(&read_set, &exception_set, &maxfd);
 
-	maxfd = MAX(maxfd, input_add_fds(&read_set, &exception_set)) + 1;
+	input_add_fds(&read_set, &exception_set, &maxfd);
 
 	for (int i = 0; i < MAX_TERMINALS; i++) {
 		if (term_is_valid(term_get_terminal(i))) {
 			terminal_t* current_term = term_get_terminal(i);
-			maxfd = MAX(maxfd, term_add_fds(current_term, &read_set, &exception_set)) + 1;
+			term_add_fds(current_term, &read_set, &exception_set, &maxfd);
 		}
 	}
 
@@ -101,7 +101,7 @@ int main_process_events(uint32_t usec)
 	} else
 		ptm = NULL;
 
-	sstat = select(maxfd, &read_set, NULL, &exception_set, ptm);
+	sstat = select(maxfd + 1, &read_set, NULL, &exception_set, ptm);
 	if (sstat == 0)
 		return 0;
 

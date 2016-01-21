@@ -408,23 +408,21 @@ void input_close()
 	input.udev_fd = -1;
 }
 
-int input_add_fds(fd_set* read_set, fd_set* exception_set)
+void input_add_fds(fd_set* read_set, fd_set* exception_set, int *maxfd)
 {
 	unsigned int u;
-	int max = -1;
 
 	for (u = 0; u < input.ndevs; u++) {
 		FD_SET(input.devs[u].fd, read_set);
 		FD_SET(input.devs[u].fd, exception_set);
-		if (input.devs[u].fd > max)
-			max = input.devs[u].fd;
+		if (input.devs[u].fd > *maxfd)
+			*maxfd = input.devs[u].fd;
 	}
 
 	FD_SET(input.udev_fd, read_set);
 	FD_SET(input.udev_fd, exception_set);
-	if (input.udev_fd > max)
-		max = input.udev_fd;
-	return max;
+	if (input.udev_fd > *maxfd)
+		*maxfd = input.udev_fd;
 }
 
 struct input_key_event* input_get_event(fd_set* read_set,

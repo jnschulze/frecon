@@ -34,7 +34,7 @@ bool term_exception(terminal_t*, fd_set* exception_set);
 bool term_is_active(terminal_t*);
 void term_activate(terminal_t*);
 void term_deactivate(terminal_t* terminal);
-int term_add_fds(terminal_t* terminal, fd_set* read_set, fd_set* exception_set);
+void term_add_fds(terminal_t* terminal, fd_set* read_set, fd_set* exception_set, int *maxfd);
 const char* term_get_ptsname(terminal_t* terminal);
 void term_set_background(terminal_t* term, uint32_t bg);
 int term_show_image(terminal_t* terminal, image_t* image);

@@ -14,7 +14,7 @@
 
 int input_init();
 void input_close();
-int input_add_fds(fd_set* read_set, fd_set* exception_set);
+void input_add_fds(fd_set* read_set, fd_set* exception_set, int *maxfd);
 void input_dispatch_io(fd_set* read_set, fd_set* exception_set);
 
 #endif

@@ -407,10 +407,10 @@ void dbus_destroy(void)
 	}
 }
 
-int dbus_add_fds(fd_set* read_set, fd_set* exception_set)
+void dbus_add_fds(fd_set* read_set, fd_set* exception_set, int *maxfd)
 {
 	if (!dbus)
-		return -1;
+		return;
 
 	if (dbus->fd < 0)
 		dbus->fd = dbus_watch_get_unix_fd(dbus->watch);
@@ -420,7 +420,8 @@ int dbus_add_fds(fd_set* read_set, fd_set* exception_set)
 		FD_SET(dbus->fd, exception_set);
 	}
 
-	return dbus->fd;
+	if (dbus->fd > *maxfd)
+		*maxfd = dbus->fd;
 }
 
 void dbus_dispatch_io(void)
