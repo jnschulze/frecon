@@ -16,5 +16,7 @@ int input_init();
 void input_close();
 void input_add_fds(fd_set* read_set, fd_set* exception_set, int *maxfd);
 void input_dispatch_io(fd_set* read_set, fd_set* exception_set);
+int input_add(const char* devname);
+void input_remove(const char* devname);
 
 #endif

@@ -14,6 +14,7 @@
 
 #include "dbus.h"
 #include "dbus_interface.h"
+#include "dev.h"
 #include "input.h"
 #include "main.h"
 #include "splash.h"
@@ -84,8 +85,8 @@ int main_process_events(uint32_t usec)
 	FD_ZERO(&exception_set);
 
 	dbus_add_fds(&read_set, &exception_set, &maxfd);
-
 	input_add_fds(&read_set, &exception_set, &maxfd);
+	dev_add_fds(&read_set, &exception_set, &maxfd);
 
 	for (int i = 0; i < MAX_TERMINALS; i++) {
 		if (term_is_valid(term_get_terminal(i))) {
@@ -110,6 +111,7 @@ int main_process_events(uint32_t usec)
 	if (term_exception(terminal, &exception_set))
 		return -1;
 
+	dev_dispatch_io(&read_set, &exception_set);
 	input_dispatch_io(&read_set, &exception_set);
 
 	for (int i = 0; i < MAX_TERMINALS; i++) {
@@ -201,6 +203,12 @@ int main(int argc, char* argv[])
 	ret = input_init();
 	if (ret) {
 		LOG(ERROR, "Input init failed");
+		return EXIT_FAILURE;
+	}
+
+	ret = dev_init();
+	if (ret) {
+		LOG(ERROR, "Device management init failed");
 		return EXIT_FAILURE;
 	}
 
@@ -299,6 +307,7 @@ int main(int argc, char* argv[])
 	ret = main_loop(command_flags.standalone);
 
 	input_close();
+	dev_close();
 	dbus_destroy();
 
 	return ret;

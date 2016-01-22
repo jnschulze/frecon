@@ -40,24 +40,15 @@ struct keyboard_state {
 
 /*
  * structure to keep input state:
- *  udev - for udev events.
- *  udev_monitor - used to listen for udev events.
- *  udev_fd - to poll for udev messages.
  *  ndevs - number of input devices.
  *  devs - input devices to listen to.
  *  kbd_state - tracks modifier keys that are pressed.
  */
 struct {
-	struct udev* udev;
-	struct udev_monitor* udev_monitor;
-	int udev_fd;
 	unsigned int ndevs;
 	struct input_dev* devs;
 	struct keyboard_state kbd_state;
 } input = {
-	.udev = NULL,
-	.udev_monitor = NULL,
-	.udev_fd = -1,
 	.ndevs = 0,
 	.devs = NULL,
 };
@@ -267,7 +258,7 @@ static void input_get_keysym_and_unicode(struct input_key_event* event,
 	*unicode = *keysym;
 }
 
-static int input_add(const char* devname)
+int input_add(const char* devname)
 {
 	int ret = 0, fd = -1;
 
@@ -325,7 +316,7 @@ errorret:
 	return ret;
 }
 
-static void input_remove(const char* devname)
+void input_remove(const char* devname)
 {
 	unsigned int u;
 
@@ -345,47 +336,10 @@ static void input_remove(const char* devname)
 	}
 }
 
-
 int input_init()
 {
-	input.udev = udev_new();
-	if (!input.udev)
-		return -ENOENT;
-
-	input.udev_monitor = udev_monitor_new_from_netlink(input.udev, "udev");
-	if (!input.udev_monitor) {
-		udev_unref(input.udev);
-		return -ENOENT;
-	}
-	udev_monitor_filter_add_match_subsystem_devtype(input.udev_monitor, "input",
-							NULL);
-	udev_monitor_enable_receiving(input.udev_monitor);
-	input.udev_fd = udev_monitor_get_fd(input.udev_monitor);
-
-	struct udev_enumerate* udev_enum;
-	struct udev_list_entry* devices, *deventry;
-	udev_enum = udev_enumerate_new(input.udev);
-	udev_enumerate_add_match_subsystem(udev_enum, "input");
-	udev_enumerate_scan_devices(udev_enum);
-	devices = udev_enumerate_get_list_entry(udev_enum);
-	udev_list_entry_foreach(deventry, devices) {
-		const char* syspath;
-		struct udev_device* dev;
-		syspath = udev_list_entry_get_name(deventry);
-		dev = udev_device_new_from_syspath(input.udev, syspath);
-		input_add(udev_device_get_devnode(dev));
-		udev_device_unref(dev);
-	}
-	udev_enumerate_unref(udev_enum);
-
 	if (!isatty(fileno(stdout)))
 		setbuf(stdout, NULL);
-
-	if (input.ndevs == 0) {
-		LOG(ERROR, "No valid inputs for terminal");
-		exit(EXIT_SUCCESS);
-	}
-
 	return 0;
 }
 
@@ -400,12 +354,6 @@ void input_close()
 	free(input.devs);
 	input.devs = NULL;
 	input.ndevs = 0;
-
-	udev_monitor_unref(input.udev_monitor);
-	input.udev_monitor = NULL;
-	udev_unref(input.udev);
-	input.udev = NULL;
-	input.udev_fd = -1;
 }
 
 void input_add_fds(fd_set* read_set, fd_set* exception_set, int *maxfd)
@@ -418,11 +366,6 @@ void input_add_fds(fd_set* read_set, fd_set* exception_set, int *maxfd)
 		if (input.devs[u].fd > *maxfd)
 			*maxfd = input.devs[u].fd;
 	}
-
-	FD_SET(input.udev_fd, read_set);
-	FD_SET(input.udev_fd, exception_set);
-	if (input.udev_fd > *maxfd)
-		*maxfd = input.udev_fd;
 }
 
 struct input_key_event* input_get_event(fd_set* read_set,
@@ -431,28 +374,6 @@ struct input_key_event* input_get_event(fd_set* read_set,
 	unsigned int u;
 	struct input_event ev;
 	int ret;
-
-	if (FD_ISSET(input.udev_fd, exception_set)) {
-		/* udev died on us? */
-		LOG(ERROR, "Exception on udev fd");
-	}
-
-	if (FD_ISSET(input.udev_fd, read_set)
-	    && !FD_ISSET(input.udev_fd, exception_set)) {
-		/* we got an udev notification */
-		struct udev_device* dev =
-		    udev_monitor_receive_device(input.udev_monitor);
-		if (dev) {
-			if (!strcmp("add", udev_device_get_action(dev))) {
-				input_add(udev_device_get_devnode(dev));
-			} else
-			    if (!strcmp("remove", udev_device_get_action(dev)))
-			{
-				input_remove(udev_device_get_devnode(dev));
-			}
-			udev_device_unref(dev);
-		}
-	}
 
 	for (u = 0; u < input.ndevs; u++) {
 		if (FD_ISSET(input.devs[u].fd, read_set)
