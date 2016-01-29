@@ -10,6 +10,7 @@
 
 #include "dev.h"
 #include "input.h"
+#include "term.h"
 #include "util.h"
 
 static struct udev* udev = NULL;
@@ -30,6 +31,8 @@ int dev_init(void)
 	}
 	udev_monitor_filter_add_match_subsystem_devtype(udev_monitor, "input",
 							NULL);
+	udev_monitor_filter_add_match_subsystem_devtype(udev_monitor, "drm",
+							"drm_minor");
 	udev_monitor_enable_receiving(udev_monitor);
 	udev_fd = udev_monitor_get_fd(udev_monitor);
 
@@ -91,11 +94,18 @@ void dev_dispatch_io(fd_set* read_set, fd_set* exception_set)
 		struct udev_device* dev =
 		    udev_monitor_receive_device(udev_monitor);
 		if (dev) {
-			if (!strcmp("add", udev_device_get_action(dev))) {
-				input_add(udev_device_get_devnode(dev));
-			} else if (!strcmp("remove",
-					   udev_device_get_action(dev))) {
-				input_remove(udev_device_get_devnode(dev));
+			if (!strcmp("input", udev_device_get_subsystem(dev))) {
+				if (!strcmp("add", udev_device_get_action(dev))) {
+					input_add(udev_device_get_devnode(dev));
+				} else if (!strcmp("remove", udev_device_get_action(dev))) {
+					input_remove(udev_device_get_devnode(dev));
+				}
+			} else if (!strcmp("drm", udev_device_get_subsystem(dev))
+					&& !strcmp("drm_minor", udev_device_get_devtype(dev))
+					&& !strcmp("change", udev_device_get_action(dev))) {
+				const char *hotplug = udev_device_get_property_value(dev, "HOTPLUG");
+				if (hotplug && atoi(hotplug) == 1)
+					term_monitor_hotplug();
 			}
 			udev_device_unref(dev);
 		}

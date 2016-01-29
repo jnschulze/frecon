@@ -5,6 +5,7 @@
  */
 
 #include <drm_fourcc.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -63,10 +64,9 @@ static int kms_open(video_t* video)
 			continue;
 		}
 
-		if (res->count_crtcs > 0 && res->count_connectors > 0) {
-			if (find_first_connected_connector(fd, res))
-				break;
-		}
+		/* expect at least one crtc so we do not try to run on VGEM */
+		if (res->count_crtcs > 0 && res->count_connectors > 0)
+			break;
 
 		drmClose(fd);
 		drmModeFreeResources(res);
@@ -236,6 +236,7 @@ static int video_buffer_create(video_t* video, drmModeCrtc* crtc, drmModeConnect
 			       int* pitch)
 {
 	struct drm_mode_create_dumb create_dumb;
+	struct drm_mode_destroy_dumb destroy_dumb;
 	int ret;
 
 	memset(&create_dumb, 0, sizeof (create_dumb));
@@ -276,13 +277,26 @@ static int video_buffer_create(video_t* video, drmModeCrtc* crtc, drmModeConnect
 	return ret;
 
 destroy_buffer:
-	;
-	struct drm_mode_destroy_dumb destroy_dumb;
 	destroy_dumb.handle = create_dumb.handle;
 
 	drmIoctl(video->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
 
 	return ret;
+}
+
+static void video_buffer_destroy(video_t* video)
+{
+	struct drm_mode_destroy_dumb destroy_dumb;
+
+	if (video->buffer_handle <= 0)
+		return;
+
+	drmModeRmFB(video->fd, video->fb_id);
+	video->fb_id = 0;
+	destroy_dumb.handle = video->buffer_handle;
+	drmIoctl(video->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
+	video->buffer_handle = 0;
+	video->lock.map = NULL;
 }
 
 static bool parse_edid_dtd(uint8_t* dtd, drmModeModeInfo* mode,
@@ -346,13 +360,135 @@ static bool parse_edid_dtd_display_size(video_t* video,
 	return false;
 }
 
-video_t* video_init()
+static void video_close_monitor(video_t* video)
+{
+	video_buffer_destroy(video);
+
+	if (video->main_monitor_connector) {
+		disable_crtc(video->fd, video->drm_resources,
+				find_crtc_for_connector(video->fd, video->drm_resources,
+					video->main_monitor_connector));
+		drmModeFreeConnector(video->main_monitor_connector);
+		video->main_monitor_connector = NULL;
+	}
+
+	if (video->crtc) {
+		drmModeFreeCrtc(video->crtc);
+		video->crtc = NULL;
+	}
+}
+
+/* video_init_connector can be safely called multiple times for instance
+   when another monitor is connected. it will pick the best monitor and
+   re-initialize required resources.
+   return codes:
+    negative - error
+    0 - OK, no changes
+    1 - OK, monitor has changed
+*/
+int video_init_connector(video_t* video)
 {
 	int32_t width, height, scaling, pitch;
-	uint32_t selected_mode;
-	video_t* new_video;
 	bool edid_found = false;
 	int32_t hsize_mm, vsize_mm;
+	uint32_t selected_mode;
+	drmModeConnectorPtr new_mon;
+	int ret = 0, r;
+
+	new_mon = find_main_monitor(video->fd,
+			video->drm_resources, &selected_mode);
+
+	if (!new_mon) {
+		if (video->main_monitor_connector)
+			video_close_monitor(video);
+		video->buffer_properties.width = 640;
+		video->buffer_properties.height = 480;
+		video->buffer_properties.pitch = 640 * 4;
+		video->buffer_properties.scaling = 1;
+		LOG(WARNING, "No monitor available, running headless!");
+		return ret;
+	}
+
+	if (video->main_monitor_connector
+		&& new_mon->connector_id == video->main_monitor_connector->connector_id) {
+		drmModeFreeConnector(new_mon);
+		return ret;
+	}
+
+	ret = 1;
+	if (video->main_monitor_connector)
+		video_close_monitor(video);
+	video->main_monitor_connector = new_mon;
+
+	for (int i = 0; i < video->main_monitor_connector->count_props; i++) {
+		drmModePropertyPtr prop;
+		drmModePropertyBlobPtr blob_ptr;
+		prop = drmModeGetProperty(video->fd, video->main_monitor_connector->props[i]);
+		if (prop) {
+			if (strcmp(prop->name, "EDID") == 0) {
+				blob_ptr = drmModeGetPropertyBlob(video->fd,
+					video->main_monitor_connector->prop_values[i]);
+				if (blob_ptr) {
+					memcpy(&video->edid, blob_ptr->data, EDID_SIZE);
+					drmModeFreePropertyBlob(blob_ptr);
+					edid_found = true;
+				}
+			}
+		}
+	}
+
+	video->crtc = find_crtc_for_connector(video->fd,
+			video->drm_resources, video->main_monitor_connector);
+
+	if (!video->crtc) {
+		LOG(ERROR, "unable to find a crtc");
+		return -ENODEV;
+	}
+
+	video->crtc->mode =
+		video->main_monitor_connector->modes[selected_mode];
+
+	r = video_buffer_create(video, video->crtc,
+				video->main_monitor_connector, &pitch);
+	if (r < 0) {
+		LOG(ERROR, "video_buffer_create failed");
+		return r;
+	}
+
+	width = video->crtc->mode.hdisplay;
+	height = video->crtc->mode.vdisplay;
+
+	if (!edid_found || !parse_edid_dtd_display_size(
+			video, &hsize_mm, &vsize_mm)) {
+		hsize_mm = video->main_monitor_connector->mmWidth;
+		vsize_mm = video->main_monitor_connector->mmHeight;
+	}
+
+	if (!hsize_mm)
+		scaling = 1;
+	else {
+		int dots_per_cm = width * 10 / hsize_mm;
+		if (dots_per_cm > 133)
+			scaling = 4;
+		else if (dots_per_cm > 100)
+			scaling = 3;
+		else if (dots_per_cm > 67)
+			scaling = 2;
+		else
+			scaling = 1;
+	}
+
+	video->buffer_properties.width = width;
+	video->buffer_properties.height = height;
+	video->buffer_properties.pitch = pitch;
+	video->buffer_properties.scaling = scaling;
+
+	return ret;
+}
+
+video_t* video_init()
+{
+	video_t* new_video;
 
 	new_video = (video_t*)calloc(1, sizeof(video_t));
 	if (!new_video)
@@ -370,75 +506,8 @@ video_t* video_init()
 		goto fail;
 	}
 
-	new_video->main_monitor_connector = find_main_monitor(new_video->fd,
-			new_video->drm_resources, &selected_mode);
-
-	if (!new_video->main_monitor_connector) {
-		LOG(ERROR, "main_monitor_connector is nil");
+	if (video_init_connector(new_video) < 0)
 		goto fail;
-	}
-
-	for (int i = 0; i < new_video->main_monitor_connector->count_props; i++) {
-		drmModePropertyPtr prop;
-		drmModePropertyBlobPtr blob_ptr;
-		prop = drmModeGetProperty(new_video->fd, new_video->main_monitor_connector->props[i]);
-		if (prop) {
-			if (strcmp(prop->name, "EDID") == 0) {
-				blob_ptr = drmModeGetPropertyBlob(new_video->fd,
-					new_video->main_monitor_connector->prop_values[i]);
-				if (blob_ptr) {
-					memcpy(&new_video->edid, blob_ptr->data, EDID_SIZE);
-					drmModeFreePropertyBlob(blob_ptr);
-					edid_found = true;
-				}
-			}
-		}
-	}
-
-	new_video->crtc = find_crtc_for_connector(new_video->fd,
-			new_video->drm_resources, new_video->main_monitor_connector);
-
-	if (!new_video->crtc) {
-		LOG(ERROR, "unable to find a crtc");
-		goto fail;
-	}
-
-	new_video->crtc->mode =
-		new_video->main_monitor_connector->modes[selected_mode];
-
-	if (video_buffer_create(new_video, new_video->crtc,
-				new_video->main_monitor_connector, &pitch)) {
-		LOG(ERROR, "video_buffer_create failed");
-		goto fail;
-	}
-
-	width = new_video->crtc->mode.hdisplay;
-	height = new_video->crtc->mode.vdisplay;
-
-	if (!edid_found || !parse_edid_dtd_display_size(
-			new_video, &hsize_mm, &vsize_mm)) {
-		hsize_mm = new_video->main_monitor_connector->mmWidth;
-		vsize_mm = new_video->main_monitor_connector->mmHeight;
-	}
-
-	if (!hsize_mm)
-		scaling = 1;
-	else {
-		int dots_per_cm = width * 10 / hsize_mm;
-		if (dots_per_cm > 133)
-			scaling = 4;
-		else if (dots_per_cm > 100)
-			scaling = 3;
-		else if (dots_per_cm > 67)
-			scaling = 2;
-		else
-			scaling = 1;
-	}
-
-	new_video->buffer_properties.width = width;
-	new_video->buffer_properties.height = height;
-	new_video->buffer_properties.pitch = pitch;
-	new_video->buffer_properties.scaling = scaling;
 
 	video_addref(new_video);
 
@@ -526,6 +595,10 @@ int32_t video_setmode(video_t* video)
 {
 	int32_t ret;
 
+	/* headless mode */
+	if (!video->crtc)
+		return 0;
+
 	ret = drmSetMaster(video->fd);
 	if (ret)
 		LOG(ERROR, "drmSetMaster failed: %m");
@@ -563,7 +636,6 @@ void video_release(video_t* video)
 
 void video_close(video_t* video)
 {
-	struct drm_mode_destroy_dumb destroy_dumb;
 
 	if (!video)
 		return;
@@ -574,22 +646,8 @@ void video_close(video_t* video)
 
 	video_release(video);
 
-	destroy_dumb.handle = video->buffer_handle;
-	drmIoctl(video->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
-
 	if (video->fd >= 0) {
-		if (video->main_monitor_connector) {
-			disable_crtc(video->fd, video->drm_resources,
-					find_crtc_for_connector(video->fd, video->drm_resources,
-						video->main_monitor_connector));
-			drmModeFreeConnector(video->main_monitor_connector);
-			video->main_monitor_connector = NULL;
-		}
-
-		if (video->crtc) {
-			drmModeFreeCrtc(video->crtc);
-			video->crtc = NULL;
-		}
+		video_close_monitor(video);
 
 		if (video->drm_plane_resources) {
 			drmModeFreePlaneResources(video->drm_plane_resources);
@@ -610,7 +668,7 @@ void video_close(video_t* video)
 
 uint32_t* video_lock(video_t* video)
 {
-	if (video->lock.count == 0) {
+	if (video->lock.count == 0 && video->buffer_handle > 0) {
 		video->lock.map =
 			mmap(0, video->buffer_properties.size, PROT_READ | PROT_WRITE,
 					MAP_SHARED, video->fd, video->lock.map_offset);
@@ -631,7 +689,7 @@ void video_unlock(video_t* video)
 	else
 		LOG(ERROR, "video locking unbalanced");
 
-	if (video->lock.count == 0) {
+	if (video->lock.count == 0 && video->buffer_handle > 0) {
 		struct drm_clip_rect clip_rect = {
 			0, 0, video->buffer_properties.width, video->buffer_properties.height
 		};

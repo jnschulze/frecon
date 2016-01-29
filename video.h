@@ -66,5 +66,6 @@ uint32_t* video_lock(video_t* video);
 void video_unlock(video_t* video);
 void video_addref(video_t* video);
 void video_delref(video_t* video);
+int video_init_connector(video_t* video);
 
 #endif

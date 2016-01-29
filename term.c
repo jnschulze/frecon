@@ -567,3 +567,25 @@ void term_set_current_to(terminal_t* terminal)
 	}
 	LOG(ERROR, "set_current_to: terminal not in array");
 }
+
+void term_monitor_hotplug(void)
+{
+	unsigned int t;
+
+	for (t = 0; t < MAX_TERMINALS; t++) {
+		bool resize_needed = false;
+		if (!terminals[t])
+			continue;
+		if (!terminals[t]->video)
+			continue;
+		if (video_init_connector(terminals[t]->video) == 1)
+			resize_needed = true;
+		if (resize_needed) {
+			term_resize(terminals[t]);
+			if (current_terminal == t && terminals[t]->active)
+				video_setmode(terminals[t]->video);
+			terminals[t]->term->age = 0;
+			term_redraw(terminals[t]);
+		}
+	}
+}
