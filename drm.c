@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "drm.h"
+#include "input.h"
 #include "util.h"
 
 static drm_t* drm = NULL;
@@ -186,12 +187,14 @@ static drmModeConnector* find_first_connected_connector(drm_t* drm, bool interna
 static drmModeConnector* find_main_monitor(drm_t* drm, uint32_t* mode_index)
 {
 	int modes;
+	int lid_state = input_check_lid_state();
 	drmModeConnector* main_monitor_connector = NULL;
 
 	/*
 	 * Find the LVDS/eDP/DSI connectors. Those are the main screens.
 	 */
-	main_monitor_connector = find_first_connected_connector(drm, true, false);
+	if (lid_state <= 0)
+		main_monitor_connector = find_first_connected_connector(drm, true, false);
 
 	/*
 	 * Now try external connectors.

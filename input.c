@@ -403,6 +403,9 @@ struct input_key_event* input_get_event(fd_set* read_set,
 				event->code = ev.code;
 				event->value = ev.value;
 				return event;
+			} else if (ev.type == EV_SW && ev.code == SW_LID) {
+				/* TODO(dbehr), abstract this in input_key_event if we ever parse more than one */
+				term_monitor_hotplug();
 			}
 		}
 	}
@@ -439,3 +442,48 @@ void input_dispatch_io(fd_set* read_set, fd_set* exception_set)
 		input_put_event(event);
 	}
 }
+
+#define BITS_PER_LONG (sizeof(long) * 8)
+#define BITS_TO_LONGS(bits) (((bits) - 1) / BITS_PER_LONG + 1)
+#define BITMASK_GET_BIT(bitmask, bit) \
+    ((bitmask[bit / BITS_PER_LONG] >> (bit % BITS_PER_LONG)) & 1)
+
+static const int kMaxBit = MAX(MAX(EV_MAX, KEY_MAX), SW_MAX);
+
+static bool has_event_bit(int fd, int event_type, int bit)
+{
+	unsigned long bitmask[BITS_TO_LONGS(kMaxBit+1)];
+	memset(bitmask, 0, sizeof(bitmask));
+
+	if (ioctl(fd, EVIOCGBIT(event_type, sizeof(bitmask)), bitmask) < 0)
+		return false;
+
+	return BITMASK_GET_BIT(bitmask, bit);
+}
+
+static int get_switch_bit(int fd, int bit) {
+	unsigned long bitmask[BITS_TO_LONGS(SW_MAX+1)];
+	memset(bitmask, 0, sizeof(bitmask));
+	if (ioctl(fd, EVIOCGSW(sizeof(bitmask)), bitmask) < 0)
+		return -1;
+
+	return BITMASK_GET_BIT(bitmask, bit);
+}
+
+static bool is_lid_switch(int fd)
+{
+	return has_event_bit(fd, 0, EV_SW) && has_event_bit(fd, EV_SW, SW_LID);
+}
+
+int input_check_lid_state(void)
+{
+	unsigned int u;
+
+	for (u = 0; u < input.ndevs; u++) {
+		if (is_lid_switch(input.devs[u].fd)) {
+			return get_switch_bit(input.devs[u].fd, SW_LID);
+		}
+	}
+	return -ENODEV;
+}
+
