@@ -24,6 +24,7 @@ void dbus_report_user_activity(int activity_type);
 void dbus_take_display_ownership(void);
 void dbus_release_display_ownership(void);
 bool dbus_is_initialized(void);
-
+void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
+					    void* userptr);
 
 #endif // FRECON_DBUS_H

@@ -35,7 +35,7 @@ static const char kSessionManagerServicePath[] = "/org/chromium/SessionManager";
 static const char kSessionManagerServiceName[] = "org.chromium.SessionManager";
 
 static const char kLoginPromptVisibleSignal[] = "LoginPromptVisible";
-static const char kLoginPromptVisiibleRule[] = "interface='org.chromium.SessionManagerInterface',type='signal'";
+static const char kLoginPromptVisibleRule[] = "interface='org.chromium.SessionManagerInterface',type='signal'";
 
 static const char kLibCrosServiceName[] = "org.chromium.LibCrosService";
 static const char kLibCrosServicePath[] = "/org/chromium/LibCrosService";

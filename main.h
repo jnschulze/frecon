@@ -9,4 +9,11 @@
 
 int main_process_events(uint32_t usec);
 
+typedef struct {
+	bool    daemon;
+	bool    enable_vts;
+} commandflags_t;
+
+extern commandflags_t command_flags;
+
 #endif

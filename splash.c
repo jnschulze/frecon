@@ -24,7 +24,6 @@
 
 #define  MAX_SPLASH_IMAGES      (30)
 #define  MAX_SPLASH_WAITTIME    (8)
-#define  DBUS_WAIT_DELAY        (50000)
 
 typedef struct {
 	image_t* image;
@@ -38,7 +37,6 @@ struct _splash_t {
 	uint32_t clear;
 	splash_frame_t image_frames[MAX_SPLASH_IMAGES];
 	bool terminated;
-	bool devmode;
 	int32_t loop_start;
 	uint32_t loop_duration;
 	uint32_t default_duration;
@@ -129,8 +127,6 @@ int splash_run(splash_t* splash)
 	int64_t now_ms;
 	int64_t sleep_ms;
 	struct timespec sleep_spec;
-	int fd;
-	int num_written;
 	image_t* image;
 	uint32_t duration;
 
@@ -189,6 +185,9 @@ int splash_run(splash_t* splash)
 		}
 
 		image_release(image);
+		/* see if we can initialize DBUS */
+		if (!dbus_is_initialized())
+			dbus_init();
 	}
 
 	for (i = 0; i < splash->num_images; i++) {
@@ -203,48 +202,6 @@ int splash_run(splash_t* splash)
 	video_release(splash->video);
 	video_unlock(splash->video);
 
-	while (!dbus_is_initialized()) {
-		dbus_init();
-		usleep(DBUS_WAIT_DELAY);
-	}
-
-	if (splash->devmode) {
-		/*
-		 * Now set drm_master_relax so that we can transfer drm_master between
-		 * chrome and frecon
-		 */
-		fd = open("/sys/kernel/debug/dri/drm_master_relax", O_WRONLY);
-		if (fd != -1) {
-			num_written = write(fd, "Y", 1);
-			close(fd);
-
-			/*
-			 * If we can't set drm_master relax, then transitions between chrome
-			 * and frecon won't work.  No point in having frecon hold any resources
-			 */
-			if (num_written != 1) {
-				LOG(ERROR, "Unable to set drm_master_relax");
-				splash->devmode = false;
-			}
-		} else {
-			LOG(ERROR, "unable to open drm_master_relax");
-		}
-	} else {
-		/*
-		 * Below, we will wait for Chrome to appear above the splash
-		 * image.  If we are not in dev mode, wait and then exit
-		 */
-		sleep(MAX_SPLASH_WAITTIME);
-		exit(EXIT_SUCCESS);
-	}
-
-	dbus_take_display_ownership();
-
-	/*
-	 * Finally, wait until chrome has drawn on top of the splash.  In dev mode,
-	 * wait a few seconds for chrome to show up.
-	 */
-	sleep(MAX_SPLASH_WAITTIME);
 	return status;
 }
 
@@ -254,12 +211,6 @@ void splash_set_offset(splash_t* splash, int32_t x, int32_t y)
 		splash->offset_x = x;
 		splash->offset_y = y;
 	}
-}
-
-void splash_set_devmode(splash_t* splash)
-{
-	if (splash)
-		splash->devmode = true;
 }
 
 int splash_num_images(splash_t* splash)

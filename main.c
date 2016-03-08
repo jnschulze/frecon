@@ -4,6 +4,7 @@
  * found in the LICENSE file.
  */
 
+#include <fcntl.h>
 #include <getopt.h>
 #include <libtsm.h>
 #include <memory.h>
@@ -11,6 +12,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "dbus.h"
 #include "dbus_interface.h"
@@ -22,9 +25,11 @@
 #include "util.h"
 #include "video.h"
 
+#define  DBUS_WAIT_DELAY_US            (50000)
+
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
-#define  FLAG_DEV_MODE                     'e'
+#define  FLAG_ENABLE_VTS                   'e'
 #define  FLAG_FRAME_INTERVAL               'f'
 #define  FLAG_GAMMA                        'g'
 #define  FLAG_IMAGE                        'i'
@@ -38,7 +43,8 @@
 static struct option command_options[] = {
 	{ "clear", required_argument, NULL, FLAG_CLEAR },
 	{ "daemon", no_argument, NULL, FLAG_DAEMON },
-	{ "dev-mode", no_argument, NULL, FLAG_DEV_MODE },
+	{ "dev-mode", no_argument, NULL, FLAG_ENABLE_VTS },
+	{ "enable-vts", no_argument, NULL, FLAG_ENABLE_VTS },
 	{ "frame-interval", required_argument, NULL, FLAG_FRAME_INTERVAL },
 	{ "gamma", required_argument, NULL, FLAG_GAMMA },
 	{ "image", required_argument, NULL, FLAG_IMAGE },
@@ -51,9 +57,7 @@ static struct option command_options[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-typedef struct {
-	bool    standalone;
-} commandflags_t;
+commandflags_t command_flags = { 0 };
 
 static void parse_offset(char* param, int32_t* x, int32_t* y)
 {
@@ -145,17 +149,9 @@ int main_process_events(uint32_t usec)
 	return 0;
 }
 
-int main_loop(bool standalone)
+int main_loop(void)
 {
-	terminal_t* terminal;
 	int status;
-
-	if (standalone) {
-		dbus_take_display_ownership();
-		term_set_current_terminal(term_init(true, NULL));
-		terminal = term_get_current_terminal();
-		term_activate(terminal);
-	}
 
 	while (1) {
 		status = main_process_events(0);
@@ -168,6 +164,39 @@ int main_loop(bool standalone)
 	return 0;
 }
 
+bool set_drm_master_relax(void)
+{
+	int fd;
+	int num_written;
+
+	/*
+	 * Setting drm_master_relax flag in kernel allows us to transfer DRM master
+	 * between Chrome and frecon
+	 */
+	fd = open("/sys/kernel/debug/dri/drm_master_relax", O_WRONLY);
+	if (fd != -1) {
+		num_written = write(fd, "Y", 1);
+		close(fd);
+		if (num_written != 1) {
+			LOG(ERROR, "Unable to set drm_master_relax");
+			return false;
+		}
+	} else {
+		LOG(ERROR, "unable to open drm_master_relax");
+		return false;
+	}
+	return true;
+}
+
+static void main_on_login_prompt_visible(void* ptr)
+{
+	if (command_flags.daemon && !command_flags.enable_vts) {
+		exit(EXIT_SUCCESS);
+	} else
+	if (ptr) {
+		splash_destroy((splash_t*)ptr);
+	}
+}
 
 int main(int argc, char* argv[])
 {
@@ -175,7 +204,6 @@ int main(int argc, char* argv[])
 	int c;
 	int32_t x, y;
 	splash_t* splash;
-	commandflags_t command_flags;
 
 	/* Handle resolution special before splash init */
 	for (;;) {
@@ -196,9 +224,6 @@ int main(int argc, char* argv[])
 
 	/* Reset option parsing */
 	optind = 1;
-
-	memset(&command_flags, 0, sizeof(command_flags));
-	command_flags.standalone = true;
 
 	ret = input_init();
 	if (ret) {
@@ -230,15 +255,15 @@ int main(int argc, char* argv[])
 				break;
 
 			case FLAG_DAEMON:
-				command_flags.standalone = false;
+				command_flags.daemon = true;
 				break;
 
 			case FLAG_FRAME_INTERVAL:
 				splash_set_default_duration(splash, strtoul(optarg, NULL, 0));
 				break;
 
-			case FLAG_DEV_MODE:
-				splash_set_devmode(splash);
+			case FLAG_ENABLE_VTS:
+				command_flags.enable_vts = true;
 				break;
 
 			case FLAG_IMAGE:
@@ -274,18 +299,11 @@ int main(int argc, char* argv[])
 	for (int i = optind; i < argc; i++)
 		splash_add_image(splash, argv[i]);
 
-	/*
-	 * The DBUS service launches later than the boot-splash service, and
-	 * as a result, when splash_run starts dbus is not yet up, but, by
-	 * the time splash_run completes, it is running.  At the same time,
-	 * splash_run needs dbus to determine when chrome is visible.  So,
-	 * it creates the dbus object and then passes it back to the caller
-	 * who can then pass it to the other objects that need it
-	 */
-	if (command_flags.standalone == false) {
+	if (command_flags.daemon) {
 		splash_present_term_file(splash);
 		daemonize();
 	}
+
 	if (splash_num_images(splash) > 0) {
 		ret = splash_run(splash);
 		if (ret) {
@@ -293,18 +311,41 @@ int main(int argc, char* argv[])
 			return EXIT_FAILURE;
 		}
 	}
-	splash_destroy(splash);
 
 	/*
-	 * If splash_run didn't create the dbus object (for example, if
-	 * there are no splash screen images), then go ahead and create
-	 * it now
+	 * The DBUS service launches later than the boot-splash service, and
+	 * as a result, when splash_run starts DBUS is not yet up, but, by
+	 * the time splash_run completes, it is running.
+	 * We really need DBUS now, so we can interact with Chrome
 	 */
-	if (!dbus_is_initialized()) {
+	while (!dbus_is_initialized()) {
 		dbus_init();
+		usleep(DBUS_WAIT_DELAY_US);
 	}
 
-	ret = main_loop(command_flags.standalone);
+	/*
+	 * Ask DBUS to call us back so we can destroy splash (or quit) when login
+	 * prompt is visible;
+	 */
+	dbus_set_login_prompt_visible_callback(main_on_login_prompt_visible,
+					       (void*)splash);
+
+	if (command_flags.daemon) {
+		if (command_flags.enable_vts)
+			set_drm_master_relax();
+		dbus_take_display_ownership();
+	} else {
+		set_drm_master_relax();
+		dbus_release_display_ownership();
+		/* create and switch to first term in interactve mode */
+		terminal_t* terminal;
+		dbus_release_display_ownership();
+		term_set_current_terminal(term_init(true, NULL));
+		terminal = term_get_current_terminal();
+		term_activate(terminal);
+	}
+
+	ret = main_loop();
 
 	input_close();
 	dev_close();
