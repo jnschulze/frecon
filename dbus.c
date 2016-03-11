@@ -18,13 +18,19 @@
 #define COMMAND_TERMINATE             "Terminate"
 #define COMMAND_IMAGE                 "Image"
 
+#define DBUS_WAIT_DELAY_US             (50000)
 #define DBUS_DEFAULT_DELAY             3000
+#define DBUS_INIT_TIMEOUT_MS           (60*1000)
 
 typedef struct _dbus_t dbus_t;
 
 static void (*login_prompt_visible_callback)(void*) = NULL;
 static void* login_prompt_visible_callback_userptr = NULL;
 static bool chrome_is_already_up = false;
+static bool dbus_connect_fail = false;
+static int64_t dbus_connect_fail_time;
+static bool dbus_first_init = true;
+static int64_t dbus_first_init_time;
 
 struct _dbus_t {
 	DBusConnection* conn;
@@ -293,9 +299,8 @@ static DBusHandlerResult frecon_dbus_message_filter(DBusConnection* connection,
 						    void* user_data)
 {
 	if (dbus_message_is_signal(message,
-				kSessionManagerInterface, kLoginPromptVisibleSignal)) {
+				kSessionManagerInterface, kLoginPromptVisibleSignal))
 		return handle_login_prompt_visible(message);
-	}
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
@@ -312,6 +317,10 @@ bool dbus_init()
 	int result;
 	dbus_bool_t stat;
 
+	if (dbus_first_init) {
+		dbus_first_init = false;
+		dbus_first_init_time = get_monotonic_time_ms();
+	}
 	dbus_error_init(&err);
 
 	new_dbus = (dbus_t*)calloc(1, sizeof(*new_dbus));
@@ -323,9 +332,18 @@ bool dbus_init()
 
 	new_dbus->conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
 	if (dbus_error_is_set(&err)) {
-		LOG(ERROR, "Cannot get dbus connection");
+		if (!dbus_connect_fail) {
+			LOG(ERROR, "Cannot get DBUS connection");
+			dbus_connect_fail = true;
+			dbus_connect_fail_time = get_monotonic_time_ms();
+		}
 		free(new_dbus);
 		return false;
+	}
+
+	if (dbus_connect_fail) {
+		int64_t t = get_monotonic_time_ms() - dbus_connect_fail_time;
+		LOG(INFO, "DBUS connected after %.1f seconds", (float)t / 1000.0f);
 	}
 
 	result = dbus_bus_request_name(new_dbus->conn, kFreconDbusInterface,
@@ -362,6 +380,21 @@ bool dbus_init()
 	dbus_connection_set_exit_on_disconnect(new_dbus->conn, FALSE);
 
 	dbus = new_dbus;
+	return true;
+}
+
+bool dbus_init_wait()
+{
+	while (!dbus_is_initialized()) {
+		if (!dbus_init()) {
+			int64_t t = get_monotonic_time_ms() - dbus_first_init_time;
+			if (t >= DBUS_INIT_TIMEOUT_MS) {
+				LOG(ERROR, "DBUS init failed after a timeout of %u sec", DBUS_INIT_TIMEOUT_MS/1000);
+				return false;
+			}
+		}
+		usleep(DBUS_WAIT_DELAY_US);
+	}
 	return true;
 }
 

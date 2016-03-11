@@ -25,8 +25,6 @@
 #include "util.h"
 #include "video.h"
 
-#define  DBUS_WAIT_DELAY_US            (50000)
-
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
 #define  FLAG_ENABLE_VTS                   'e'
@@ -318,10 +316,7 @@ int main(int argc, char* argv[])
 	 * the time splash_run completes, it is running.
 	 * We really need DBUS now, so we can interact with Chrome
 	 */
-	while (!dbus_is_initialized()) {
-		dbus_init();
-		usleep(DBUS_WAIT_DELAY_US);
-	}
+	dbus_init_wait();
 
 	/*
 	 * Ask DBUS to call us back so we can destroy splash (or quit) when login
@@ -335,10 +330,9 @@ int main(int argc, char* argv[])
 			set_drm_master_relax();
 		dbus_take_display_ownership();
 	} else {
-		set_drm_master_relax();
-		dbus_release_display_ownership();
 		/* create and switch to first term in interactve mode */
 		terminal_t* terminal;
+		set_drm_master_relax();
 		dbus_release_display_ownership();
 		term_set_current_terminal(term_init(true, NULL));
 		terminal = term_get_current_terminal();
