@@ -172,7 +172,7 @@ static int input_special_key(struct input_key_event* ev)
 			term_set_current(ev->code - KEY_F2);
 			terminal = term_get_current_terminal();
 			if (terminal == NULL) {
-				term_set_current_terminal(term_init(true, NULL));
+				term_set_current_terminal(term_init(true));
 				terminal =
 					term_get_current_terminal();
 				term_activate(terminal);

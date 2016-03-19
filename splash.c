@@ -31,7 +31,6 @@ typedef struct {
 } splash_frame_t;
 
 struct _splash_t {
-	video_t* video;
 	terminal_t* terminal;
 	int num_images;
 	uint32_t clear;
@@ -55,13 +54,7 @@ splash_t* splash_init()
 	if (!splash)
 		return NULL;
 
-	splash->video = video_init();
-	if (!splash->video) {
-		free(splash);
-		return NULL;
-	}
-
-	splash->terminal = term_create_splash_term(splash->video);
+	splash->terminal = term_create_splash_term();
 	splash->loop_start = -1;
 	splash->default_duration = 25;
 	splash->loop_duration = 25;
@@ -196,12 +189,6 @@ int splash_run(splash_t* splash)
 
 	term_set_current_to(NULL);
 
-	/*
-	 * Now Chrome can take over
-	 */
-	video_release(splash->video);
-	video_unlock(splash->video);
-
 	return status;
 }
 
@@ -254,7 +241,7 @@ void splash_present_term_file(splash_t* splash)
 
 int splash_is_hires(splash_t* splash)
 {
-	if (splash && splash->video)
-		return video_getwidth(splash->video) > 1920;
+	if (splash && splash->terminal && term_getfb(splash->terminal))
+		return fb_getwidth(term_getfb(splash->terminal)) > 1920;
 	return 0;
 }

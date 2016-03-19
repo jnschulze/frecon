@@ -11,12 +11,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "fb.h"
 #include "font.h"
 #include "input.h"
 #include "shl_pty.h"
 #include "term.h"
 #include "util.h"
-#include "video.h"
 
 static terminal_t* terminals[MAX_TERMINALS];
 static uint32_t current_terminal = 0;
@@ -36,7 +36,7 @@ struct term {
 struct _terminal_t {
 	uint32_t background;
 	bool background_valid;
-	video_t* video;
+	fb_t* fb;
 	struct term* term;
 	bool active;
 	char** exec;
@@ -121,13 +121,13 @@ static int term_draw_cell(struct tsm_screen* screen, uint32_t id,
 
 static void term_redraw(terminal_t* terminal)
 {
-	uint32_t* video_buffer;
-	video_buffer = video_lock(terminal->video);
-	if (video_buffer != NULL) {
-		terminal->term->dst_image = video_buffer;
+	uint32_t* fb_buffer;
+	fb_buffer = fb_lock(terminal->fb);
+	if (fb_buffer != NULL) {
+		terminal->term->dst_image = fb_buffer;
 		terminal->term->age =
 			tsm_screen_draw(terminal->term->screen, term_draw_cell, terminal);
-		video_unlock(terminal->video);
+		fb_unlock(terminal->fb);
 	}
 }
 
@@ -197,12 +197,12 @@ static int term_resize(terminal_t* term)
 	uint32_t char_width, char_height;
 	int status;
 
-	font_init(video_getscaling(term->video));
+	font_init(fb_getscaling(term->fb));
 	font_get_size(&char_width, &char_height);
 
-	term->term->char_x = video_getwidth(term->video) / char_width;
-	term->term->char_y = video_getheight(term->video) / char_height;
-	term->term->pitch = video_getpitch(term->video);
+	term->term->char_x = fb_getwidth(term->fb) / char_width;
+	term->term->char_y = fb_getheight(term->fb) / char_height;
+	term->term->pitch = fb_getpitch(term->fb);
 
 	status = tsm_screen_resize(term->term->screen,
 				   term->term->char_x, term->term->char_y);
@@ -221,7 +221,7 @@ static int term_resize(terminal_t* term)
 	return 0;
 }
 
-terminal_t* term_init(bool interactive, video_t* video)
+terminal_t* term_init(bool interactive)
 {
 	const int scrollback_size = 200;
 	int status;
@@ -233,14 +233,9 @@ terminal_t* term_init(bool interactive, video_t* video)
 
 	new_terminal->background_valid = false;
 
-	if (video) {
-		new_terminal->video = video;
-		video_addref(video);
-	}
-	else
-		new_terminal->video = video_init();
+	new_terminal->fb = fb_init();
 
-	if (!new_terminal->video) {
+	if (!new_terminal->fb) {
 		term_close(new_terminal);
 		return NULL;
 	}
@@ -300,6 +295,7 @@ terminal_t* term_init(bool interactive, video_t* video)
 	new_terminal->term->pid = shl_pty_get_child(new_terminal->term->pty);
 
 	status = term_resize(new_terminal);
+
 	if (status < 0) {
 		shl_pty_close(new_terminal->term->pty);
 		term_close(new_terminal);
@@ -316,7 +312,7 @@ void term_activate(terminal_t* terminal)
 {
 	term_set_current_to(terminal);
 	terminal->active = true;
-	video_setmode(terminal->video);
+	fb_setmode(terminal->fb);
 	term_redraw(terminal);
 }
 
@@ -326,7 +322,6 @@ void term_deactivate(terminal_t* terminal)
 		return;
 
 	terminal->active = false;
-	video_release(terminal->video);
 }
 
 void term_close(terminal_t* term)
@@ -334,9 +329,9 @@ void term_close(terminal_t* term)
 	if (!term)
 		return;
 
-	if (term->video) {
-		video_close(term->video);
-		term->video = NULL;
+	if (term->fb) {
+		fb_close(term->fb);
+		term->fb = NULL;
 	}
 
 	if (term->term) {
@@ -448,7 +443,7 @@ void term_set_background(terminal_t* terminal, uint32_t bg)
 
 int term_show_image(terminal_t* terminal, image_t* image)
 {
-	return image_show(image, terminal->video);
+	return image_show(image, terminal->fb);
 }
 
 void term_write_message(terminal_t* terminal, char* message)
@@ -473,9 +468,9 @@ static void term_show_cursor(terminal_t* terminal)
 	term_write_message(terminal, "\033[?25h");
 }
 
-video_t* term_getvideo(terminal_t* terminal)
+fb_t* term_getfb(terminal_t* terminal)
 {
-	return terminal->video;
+	return terminal->fb;
 }
 
 terminal_t* term_get_terminal(int num)
@@ -497,7 +492,7 @@ terminal_t* term_create_term(int vt)
 		return terminal;
 
 	if (terminal == NULL) {
-		term_set_terminal(vt - 1, term_init(false, NULL));
+		term_set_terminal(vt - 1, term_init(false));
 		terminal = term_get_terminal(vt - 1);
 		if (!term_is_valid(terminal)) {
 			LOG(ERROR, "create_term: Term init failed");
@@ -507,9 +502,9 @@ terminal_t* term_create_term(int vt)
 	return terminal;
 }
 
-terminal_t* term_create_splash_term(video_t* video)
+terminal_t* term_create_splash_term()
 {
-	terminal_t* splash_terminal = term_init(false, video);
+	terminal_t* splash_terminal = term_init(false);
 	term_set_terminal(SPLASH_TERMINAL, splash_terminal);
 
 	// Hide the cursor on the splash screen
@@ -572,20 +567,27 @@ void term_monitor_hotplug(void)
 {
 	unsigned int t;
 
+	if (!drm_rescan())
+		return;
+
 	for (t = 0; t < MAX_TERMINALS; t++) {
-		bool resize_needed = false;
 		if (!terminals[t])
 			continue;
-		if (!terminals[t]->video)
+		if (!terminals[t]->fb)
 			continue;
-		if (video_init_connector(terminals[t]->video) == 1)
-			resize_needed = true;
-		if (resize_needed) {
-			term_resize(terminals[t]);
-			if (current_terminal == t && terminals[t]->active)
-				video_setmode(terminals[t]->video);
-			terminals[t]->term->age = 0;
-			term_redraw(terminals[t]);
-		}
+		fb_buffer_destroy(terminals[t]->fb);
+	}
+
+	for (t = 0; t < MAX_TERMINALS; t++) {
+		if (!terminals[t])
+			continue;
+		if (!terminals[t]->fb)
+			continue;
+		fb_buffer_init(terminals[t]->fb);
+		term_resize(terminals[t]);
+		if (current_terminal == t && terminals[t]->active)
+			fb_setmode(terminals[t]->fb);
+		terminals[t]->term->age = 0;
+		term_redraw(terminals[t]);
 	}
 }

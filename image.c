@@ -158,14 +158,14 @@ fail:
 	return 1;
 }
 
-int image_show(image_t* image, video_t* video)
+int image_show(image_t* image, fb_t* fb)
 {
 	uint32_t j;
 	uint32_t* buffer;
 	uint32_t startx, starty;
 	uint32_t pitch;
 
-	buffer = video_lock(video);
+	buffer = fb_lock(fb);
 	if (buffer == NULL)
 		return -1;
 
@@ -178,8 +178,8 @@ int image_show(image_t* image, video_t* video)
 		startx = image->location_x;
 		starty = image->location_y;
 	} else {
-		startx = (video_getwidth(video) - image->width)/2;
-		starty = (video_getheight(video) - image->height)/2;
+		startx = (fb_getwidth(fb) - image->width)/2;
+		starty = (fb_getheight(fb) - image->height)/2;
 	}
 
 	if (image->use_offset) {
@@ -187,13 +187,13 @@ int image_show(image_t* image, video_t* video)
 		starty += image->offset_y;
 	}
 
-	pitch = video_getpitch(video);
+	pitch = fb_getpitch(fb);
 
 	for (j = starty; j < starty + image->height; j++)
 		memcpy(buffer + j * pitch/4 + startx,
 				image->layout.address + (j - starty)*image->pitch, image->pitch);
 
-	video_unlock(video);
+	fb_unlock(fb);
 	return 0;
 }
 

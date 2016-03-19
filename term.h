@@ -7,8 +7,8 @@
 #ifndef TERM_H
 #define TERM_H
 
+#include "fb.h"
 #include "image.h"
-#include "video.h"
 
 #define MAX_STD_TERMINALS     (3)
 #define NUM_SPLASH_TERMINAL   (1)
@@ -16,7 +16,7 @@
 #define SPLASH_TERMINAL       (MAX_TERMINALS - 1)
 
 typedef struct _terminal_t terminal_t;
-terminal_t* term_init(bool interactive, video_t* video);
+terminal_t* term_init(bool interactive);
 void term_close(terminal_t* terminal);
 void term_close(terminal_t* terminal);
 void term_key_event(terminal_t* terminal, uint32_t keysym, int32_t unicode);
@@ -39,11 +39,11 @@ const char* term_get_ptsname(terminal_t* terminal);
 void term_set_background(terminal_t* term, uint32_t bg);
 int term_show_image(terminal_t* terminal, image_t* image);
 void term_write_message(terminal_t* terminal, char* message);
-video_t* term_getvideo(terminal_t* terminal);
+fb_t* term_getfb(terminal_t* terminal);
 terminal_t* term_get_terminal(int num);
 void term_set_terminal(int num, terminal_t* terminal);
 terminal_t* term_create_term(int vt);
-terminal_t* term_create_splash_term(video_t* video);
+terminal_t* term_create_splash_term();
 void term_destroy_splash_term();
 unsigned int term_get_max_terminals();
 void term_set_current(uint32_t t);

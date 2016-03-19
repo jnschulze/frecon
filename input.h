@@ -10,7 +10,6 @@
 #include <linux/input.h>
 
 #include "term.h"
-#include "video.h"
 
 int input_init();
 void input_close();

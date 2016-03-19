@@ -7,8 +7,6 @@
 #ifndef SPLASH_H
 #define SPLASH_H
 
-#include "video.h"
-
 typedef struct _splash_t splash_t;
 
 int splash_add_image(splash_t*, char* filespec);

@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <png.h>
 
-#include "video.h"
+#include "fb.h"
 
 
 typedef struct _image_t image_t;
@@ -21,7 +21,7 @@ void image_set_filename(image_t* image, char* filename);
 void image_set_offset(image_t* image, int32_t offset_x, int32_t offset_y);
 void image_set_location(image_t* image, uint32_t location_x, uint32_t location_y);
 int image_load_image_from_file(image_t* image);
-int image_show(image_t* image, video_t* video);
+int image_show(image_t* image, fb_t* fb);
 void image_release(image_t* image);
 void image_destroy(image_t* image);
 

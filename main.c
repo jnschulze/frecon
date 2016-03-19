@@ -23,7 +23,6 @@
 #include "splash.h"
 #include "term.h"
 #include "util.h"
-#include "video.h"
 
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
@@ -134,7 +133,7 @@ int main_process_events(uint32_t usec)
 				term_set_terminal(SPLASH_TERMINAL, NULL);
 				return -1;
 			}
-			term_set_current_terminal(term_init(true, term_getvideo(terminal)));
+			term_set_current_terminal(term_init(true));
 			new_terminal = term_get_current_terminal();
 			if (!term_is_valid(new_terminal)) {
 				return -1;
@@ -209,13 +208,13 @@ int main(int argc, char* argv[])
 		if (c == -1) {
 			break;
 		} else if (c == FLAG_PRINT_RESOLUTION) {
-			video_t *video = video_init();
-			if (!video)
+			drm_t *drm = drm_scan();
+			if (!drm)
 				return EXIT_FAILURE;
 
-			printf("%d %d", video_getwidth(video),
-			       video_getheight(video));
-			video_close(video);
+			printf("%d %d", drm_gethres(drm),
+			       drm_getvres(drm));
+			drm_delref(drm);
 			return EXIT_SUCCESS;
 		}
 	}
@@ -235,6 +234,7 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
+	drm_set(drm_scan());
 	splash = splash_init();
 	if (splash == NULL) {
 		LOG(ERROR, "splash init failed");
@@ -334,7 +334,7 @@ int main(int argc, char* argv[])
 		terminal_t* terminal;
 		set_drm_master_relax();
 		dbus_release_display_ownership();
-		term_set_current_terminal(term_init(true, NULL));
+		term_set_current_terminal(term_init(true));
 		terminal = term_get_current_terminal();
 		term_activate(terminal);
 	}
@@ -344,6 +344,7 @@ int main(int argc, char* argv[])
 	input_close();
 	dev_close();
 	dbus_destroy();
+	drm_close();
 
 	return ret;
 }
