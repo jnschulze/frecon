@@ -18,6 +18,7 @@ void splash_present_term_file(splash_t* splash);
 int splash_run(splash_t*);
 int splash_set_clear(splash_t* splash, uint32_t clear_color);
 void splash_set_default_duration(splash_t* splash, uint32_t duration);
+void splash_set_loop_count(splash_t* splash, int32_t count);
 void splash_set_loop_duration(splash_t* splash, uint32_t duration);
 void splash_set_loop_offset(splash_t* splash, int32_t x, int32_t y);
 void splash_set_loop_start(splash_t* splash, int32_t start_location);

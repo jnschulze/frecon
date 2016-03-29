@@ -31,11 +31,13 @@
 #define  FLAG_GAMMA                        'g'
 #define  FLAG_IMAGE                        'i'
 #define  FLAG_IMAGE_HIRES                  'I'
+#define  FLAG_LOOP_COUNT                   'C'
 #define  FLAG_LOOP_START                   'l'
 #define  FLAG_LOOP_INTERVAL                'L'
 #define  FLAG_LOOP_OFFSET                  'o'
 #define  FLAG_OFFSET                       'O'
 #define  FLAG_PRINT_RESOLUTION             'p'
+#define  FLAG_SPLASH_ONLY                  's'
 
 static struct option command_options[] = {
 	{ "clear", required_argument, NULL, FLAG_CLEAR },
@@ -46,11 +48,13 @@ static struct option command_options[] = {
 	{ "gamma", required_argument, NULL, FLAG_GAMMA },
 	{ "image", required_argument, NULL, FLAG_IMAGE },
 	{ "image-hires", required_argument, NULL, FLAG_IMAGE_HIRES },
+	{ "loop-count", required_argument, NULL, FLAG_LOOP_COUNT },
 	{ "loop-start", required_argument, NULL, FLAG_LOOP_START },
 	{ "loop-interval", required_argument, NULL, FLAG_LOOP_INTERVAL },
 	{ "loop-offset", required_argument, NULL, FLAG_LOOP_OFFSET },
 	{ "offset", required_argument, NULL, FLAG_OFFSET },
 	{ "print-resolution", no_argument, NULL, FLAG_PRINT_RESOLUTION },
+	{ "splash-only", no_argument, NULL, FLAG_SPLASH_ONLY },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -274,6 +278,10 @@ int main(int argc, char* argv[])
 					splash_add_image(splash, optarg);
 				break;
 
+			case FLAG_LOOP_COUNT:
+				splash_set_loop_count(splash, strtoul(optarg, NULL, 0));
+				break;
+
 			case FLAG_LOOP_START:
 				splash_set_loop_start(splash, strtoul(optarg, NULL, 0));
 				break;
@@ -290,6 +298,10 @@ int main(int argc, char* argv[])
 			case FLAG_OFFSET:
 				parse_offset(optarg, &x, &y);
 				splash_set_offset(splash, x, y);
+				break;
+
+			case FLAG_SPLASH_ONLY:
+				command_flags.splash_only = true;
 				break;
 		}
 	}
@@ -309,6 +321,9 @@ int main(int argc, char* argv[])
 			return EXIT_FAILURE;
 		}
 	}
+
+	if (command_flags.splash_only)
+		goto main_done;
 
 	/*
 	 * The DBUS service launches later than the boot-splash service, and
@@ -341,6 +356,7 @@ int main(int argc, char* argv[])
 
 	ret = main_loop();
 
+main_done:
 	input_close();
 	dev_close();
 	dbus_destroy();

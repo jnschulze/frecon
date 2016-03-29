@@ -37,6 +37,7 @@ struct _splash_t {
 	splash_frame_t image_frames[MAX_SPLASH_IMAGES];
 	bool terminated;
 	int32_t loop_start;
+	int32_t loop_count;
 	uint32_t loop_duration;
 	uint32_t default_duration;
 	int32_t offset_x;
@@ -56,6 +57,7 @@ splash_t* splash_init()
 
 	splash->terminal = term_create_splash_term();
 	splash->loop_start = -1;
+	splash->loop_count = -1;
 	splash->default_duration = 25;
 	splash->loop_duration = 25;
 
@@ -115,13 +117,14 @@ static void splash_clear_screen(splash_t* splash)
 int splash_run(splash_t* splash)
 {
 	int i;
-	int status;
+	int status = 0;
 	int64_t last_show_ms;
 	int64_t now_ms;
 	int64_t sleep_ms;
 	struct timespec sleep_spec;
 	image_t* image;
 	uint32_t duration;
+	int32_t c, loop_start, loop_count;
 
 	/*
 	 * First draw the actual splash screen
@@ -129,7 +132,11 @@ int splash_run(splash_t* splash)
 	splash_clear_screen(splash);
 	term_activate(splash->terminal);
 	last_show_ms = -1;
-	for (i = 0; i < splash->num_images; i++) {
+	loop_count = (splash->loop_start >= 0 && splash->loop_start < splash->num_images) ? splash->loop_count : 1;
+	loop_start = (splash->loop_start >= 0 && splash->loop_start < splash->num_images) ? splash->loop_start : 0;
+
+	for (c = 0; ((loop_count < 0) ? true : (c < loop_count)); c++)
+	for (i = (c > 0) ? loop_start : 0; i < splash->num_images; i++) {
 		image = splash->image_frames[i].image;
 		status = image_load_image_from_file(image);
 		if (status != 0) {
@@ -171,12 +178,6 @@ int splash_run(splash_t* splash)
 		}
 		last_show_ms = now_ms;
 
-		if ((splash->loop_start >= 0) &&
-				(splash->loop_start < splash->num_images)) {
-			if (i == splash->num_images - 1)
-				i = splash->loop_start - 1;
-		}
-
 		image_release(image);
 		/* see if we can initialize DBUS */
 		if (!dbus_is_initialized())
@@ -206,6 +207,12 @@ int splash_num_images(splash_t* splash)
 		return splash->num_images;
 
 	return 0;
+}
+
+void splash_set_loop_count(splash_t* splash, int32_t count)
+{
+	if (splash)
+		splash->loop_count = count;
 }
 
 void splash_set_default_duration(splash_t* splash, uint32_t duration)
