@@ -4,6 +4,8 @@
  * found in the LICENSE file.
  */
 
+#if DBUS
+#include <dbus/dbus.h>
 #include <stdlib.h>
 
 #include "dbus.h"
@@ -580,3 +582,54 @@ void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
 		login_prompt_visible_callback_userptr = userptr;
 	}
 }
+
+#else
+
+#include <stdlib.h>
+#include <stdbool.h>
+
+bool dbus_init()
+{
+	return true;
+}
+
+bool dbus_init_wait()
+{
+	return true;
+}
+
+void dbus_destroy(void)
+{
+}
+
+void dbus_add_fds(fd_set* read_set, fd_set* exception_set, int *maxfd)
+{
+}
+
+void dbus_dispatch_io(void)
+{
+}
+
+void dbus_report_user_activity(int activity_type)
+{
+}
+
+void dbus_take_display_ownership(void)
+{
+}
+
+void dbus_release_display_ownership(void)
+{
+}
+
+bool dbus_is_initialized(void)
+{
+	return true;
+}
+
+void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
+					    void* userptr)
+{
+}
+
+#endif

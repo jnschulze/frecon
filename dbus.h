@@ -8,7 +8,6 @@
 #define FRECON_DBUS_H
 
 #include <sys/select.h>
-#include <dbus/dbus.h>
 #include <stdbool.h>
 #include <memory.h>
 #include <stdio.h>
