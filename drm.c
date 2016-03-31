@@ -228,12 +228,6 @@ static void drm_fini(drm_t* drm)
 
 	if (drm->fd >= 0) {
 		if (drm->crtc) {
-			int32_t ret;
-
-			ret = drmSetMaster(drm->fd);
-			if (ret)
-				LOG(ERROR, "drmSetMaster in fini failed: %m");
-			drm_disable_crtc(drm, drm->crtc);
 			drmModeFreeCrtc(drm->crtc);
 			drm->crtc = NULL;
 		}
