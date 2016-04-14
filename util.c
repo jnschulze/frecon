@@ -55,7 +55,7 @@ __attribute__((format (__printf__, 2, 0)))
 void LOG(int severity, const char* fmt, ...)
 {
 	va_list arg_list;
-	fprintf(stderr, "frecon: ");
+	fprintf(stderr, "frecon(%d): ", getpid());
 	va_start( arg_list, fmt);
 	vfprintf(stderr, fmt, arg_list);
 	va_end(arg_list);

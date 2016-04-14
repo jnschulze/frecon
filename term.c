@@ -419,7 +419,7 @@ bool term_is_active(terminal_t* terminal)
 	return false;
 }
 
-void term_add_fds(terminal_t* terminal, fd_set* read_set, fd_set* exception_set, int *maxfd)
+void term_add_fds(terminal_t* terminal, fd_set* read_set, fd_set* exception_set, int* maxfd)
 {
 	if (term_is_valid(terminal)) {
 		if (terminal->term->pty_bridge >= 0) {
@@ -541,7 +541,7 @@ terminal_t *term_get_current_terminal(void)
 	return terminals[current_terminal];
 }
 
-void term_set_current_terminal(terminal_t *terminal)
+void term_set_current_terminal(terminal_t* terminal)
 {
 	terminals[current_terminal] = terminal;
 }
@@ -590,4 +590,19 @@ void term_monitor_hotplug(void)
 		terminals[t]->term->age = 0;
 		term_redraw(terminals[t]);
 	}
+}
+
+void term_redrm(terminal_t* terminal)
+{
+	fb_buffer_destroy(terminal->fb);
+	fb_buffer_init(terminal->fb);
+	term_resize(terminal);
+	terminal->term->age = 0;
+	term_redraw(terminal);
+}
+
+void term_clear(terminal_t* terminal)
+{
+	tsm_screen_erase_screen(terminal->term->screen, false);
+	term_redraw(terminal);
 }

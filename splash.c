@@ -112,6 +112,7 @@ int splash_add_image(splash_t* splash, char* filespec)
 static void splash_clear_screen(splash_t* splash)
 {
 	term_set_background(splash->terminal, splash->clear);
+	term_clear(splash->terminal);
 }
 
 int splash_run(splash_t* splash)
@@ -251,4 +252,9 @@ int splash_is_hires(splash_t* splash)
 	if (splash && splash->terminal && term_getfb(splash->terminal))
 		return fb_getwidth(term_getfb(splash->terminal)) > 1920;
 	return 0;
+}
+
+void splash_redrm(splash_t* splash)
+{
+	term_redrm(splash->terminal);
 }

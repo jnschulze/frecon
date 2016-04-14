@@ -34,7 +34,7 @@ bool term_exception(terminal_t*, fd_set* exception_set);
 bool term_is_active(terminal_t*);
 void term_activate(terminal_t*);
 void term_deactivate(terminal_t* terminal);
-void term_add_fds(terminal_t* terminal, fd_set* read_set, fd_set* exception_set, int *maxfd);
+void term_add_fds(terminal_t* terminal, fd_set* read_set, fd_set* exception_set, int* maxfd);
 const char* term_get_ptsname(terminal_t* terminal);
 void term_set_background(terminal_t* term, uint32_t bg);
 int term_show_image(terminal_t* terminal, image_t* image);
@@ -49,8 +49,10 @@ unsigned int term_get_max_terminals();
 void term_set_current(uint32_t t);
 uint32_t term_get_current(void);
 terminal_t *term_get_current_terminal(void);
-void term_set_current_terminal(terminal_t *terminal);
+void term_set_current_terminal(terminal_t* terminal);
 void term_set_current_to(terminal_t* terminal);
 void term_monitor_hotplug(void);
+void term_redrm(terminal_t* terminal);
+void term_clear(terminal_t* terminal);
 
 #endif

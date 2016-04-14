@@ -31,6 +31,7 @@ void drm_set(drm_t* drm);
 void drm_close(void);
 drm_t* drm_addref(void);
 void drm_delref(drm_t* drm);
+void drm_dropmaster(drm_t* drm);
 bool drm_rescan(void);
 bool drm_valid(drm_t* drm);
 int32_t drm_setmode(drm_t* drm, uint32_t fb_id);

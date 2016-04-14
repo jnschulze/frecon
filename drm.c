@@ -118,7 +118,7 @@ static int drm_is_primary_plane(drm_t* drm, uint32_t plane_id)
 	return ret;
 }
 
-/* disable all planes except for primary on crtc we use */
+/* Disable all planes except for primary on crtc we use. */
 static void drm_disable_non_primary_planes(drm_t* drm)
 {
 	int ret;
@@ -294,12 +294,12 @@ static int drm_score(drm_t* drm)
 
 	version = drmGetVersion(drm->fd);
 	if (version) {
-		/* we would rather use any driver besides UDL */
+		/* We would rather use any driver besides UDL. */
 		if (strcmp("udl", version->name) == 0)
 			score--;
 		if (strcmp("evdi", version->name) == 0)
 			score--;
-		/* VGEM should be ignored because it has no displays, but lets make sure */
+		/* VGEM should be ignored because it has no displays, but lets make sure. */
 		if (strcmp("vgem", version->name) == 0)
 			score -= 1000000;
 		drmFreeVersion(version);
@@ -307,6 +307,11 @@ static int drm_score(drm_t* drm)
 	return score;
 }
 
+/*
+ * Scan and find best DRM object to display frecon on.
+ * This object should be created with DRM master, and we will keep master till
+ * first mode set or explicit drop master.
+ */
 drm_t* drm_scan(void)
 {
 	unsigned i;
@@ -339,7 +344,7 @@ drm_t* drm_scan(void)
 			continue;
 		}
 
-		/* expect at least one crtc so we do not try to run on VGEM */
+		/* Expect at least one crtc so we do not try to run on VGEM. */
 		if (drm->resources->count_crtcs == 0 || drm->resources->count_connectors == 0) {
 			drm_fini(drm);
 			continue;
@@ -381,7 +386,6 @@ drm_t* drm_scan(void)
 			    version->desc);
 			drmFreeVersion(version);
 		}
-		drmDropMaster(best_drm->fd);
 	}
 
 	return best_drm;
@@ -404,7 +408,7 @@ void drm_close(void)
 	}
 }
 
-void drm_delref(drm_t *drm)
+void drm_delref(drm_t* drm)
 {
 	if (!drm)
 		return;
@@ -430,13 +434,22 @@ drm_t* drm_addref(void)
 	return NULL;
 }
 
+void drm_dropmaster(drm_t* drm)
+{
+	if (drm) {
+		drmDropMaster(drm->fd);
+	}
+}
+
 /*
- * returns true if connector/crtc/driver have changed and framebuffer object have to be re-create
+ * Returns true if connector/crtc/driver have changed and framebuffer object have to be re-created.
  */
 bool drm_rescan(void)
 {
 	drm_t* ndrm;
 
+	/* In case we had master, drop master so the newly created object could have it. */
+	drm_dropmaster(drm);
 	ndrm = drm_scan();
 	if (ndrm) {
 		if (drm_equal(ndrm, drm)) {
@@ -448,7 +461,7 @@ bool drm_rescan(void)
 		}
 	} else {
 		if (drm) {
-			drm_delref(drm); /* no usable monitor/drm object */
+			drm_delref(drm); /* No usable monitor/drm object. */
 			drm = NULL;
 			return true;
 		}

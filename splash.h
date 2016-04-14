@@ -23,5 +23,6 @@ void splash_set_loop_duration(splash_t* splash, uint32_t duration);
 void splash_set_loop_offset(splash_t* splash, int32_t x, int32_t y);
 void splash_set_loop_start(splash_t* splash, int32_t start_location);
 void splash_set_offset(splash_t* splash, int32_t x, int32_t y);
+void splash_redrm(splash_t* splash);
 
 #endif  // SPLASH_H
