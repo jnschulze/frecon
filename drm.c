@@ -325,17 +325,25 @@ drm_t* drm_scan(void)
 		if (!drm)
 			return NULL;
 
+try_open_again:
 		ret = asprintf(&dev_name, DRM_DEV_NAME, DRM_DIR_NAME, i);
 		if (ret < 0) {
 			drm_fini(drm);
 			continue;
 		}
-
 		drm->fd = open(dev_name, O_RDWR, 0);
 		free(dev_name);
 		if (drm->fd < 0) {
 			drm_fini(drm);
 			continue;
+		}
+		/* if we have master this should succeed */
+		ret = drmSetMaster(drm->fd);
+		if (ret != 0) {
+			drmClose(drm->fd);
+			drm->fd = -1;
+			usleep(100*1000);
+			goto try_open_again;
 		}
 
 		drm->resources = drmModeGetResources(drm->fd);
