@@ -354,15 +354,14 @@ int main(int argc, char* argv[])
 
 	if (command_flags.daemon) {
 		if (command_flags.enable_vts)
-			set_drm_master_relax();
-		/* Drop master in case we had it. */
+			set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */
 		drm_dropmaster(drm);
-		dbus_take_display_ownership();
+		term_background();
 	} else {
 		/* Create and switch to first term in interactve mode. */
 		terminal_t* terminal;
-		set_drm_master_relax();
-		dbus_release_display_ownership();
+		set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */
+		term_foreground();
 		term_set_current_terminal(term_init(true));
 		terminal = term_get_current_terminal();
 		term_activate(terminal);

@@ -54,5 +54,6 @@ void term_set_current_to(terminal_t* terminal);
 void term_monitor_hotplug(void);
 void term_redrm(terminal_t* terminal);
 void term_clear(terminal_t* terminal);
-
+void term_background(void);
+void term_foreground(void);
 #endif

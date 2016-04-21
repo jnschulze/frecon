@@ -8,6 +8,7 @@
 #define MAIN_H
 
 int main_process_events(uint32_t usec);
+bool set_drm_master_relax(void);
 
 typedef struct {
 	bool    daemon;

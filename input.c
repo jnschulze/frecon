@@ -189,11 +189,11 @@ static int input_special_key(struct input_key_event* ev)
 				if (term_get_terminal(SPLASH_TERMINAL) != NULL) {
 					term_activate(term_get_terminal(SPLASH_TERMINAL));
 				} else {
-					dbus_take_display_ownership();
+					term_background();
 				}
 			}
 		} else if ((ev->code >= KEY_F2) && (ev->code < KEY_F2 + MAX_STD_TERMINALS)) {
-			dbus_release_display_ownership();
+			term_foreground();
 			if (term_is_active(terminal))
 				term_deactivate(terminal);
 			term_set_current(ev->code - KEY_F2);

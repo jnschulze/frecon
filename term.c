@@ -11,9 +11,11 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "dbus.h"
 #include "fb.h"
 #include "font.h"
 #include "input.h"
+#include "main.h"
 #include "shl_pty.h"
 #include "term.h"
 #include "util.h"
@@ -56,6 +58,9 @@ static char* noninteractive_cmd_line[] = {
 	"/bin/cat",
 	NULL
 };
+
+static bool in_background = false;
+static bool hotplug_occured = false;
 
 
 static void __attribute__ ((noreturn)) term_run_child(terminal_t* terminal)
@@ -567,6 +572,11 @@ void term_monitor_hotplug(void)
 {
 	unsigned int t;
 
+	if (in_background) {
+		hotplug_occured = true;
+		return;
+	}
+
 	if (!drm_rescan())
 		return;
 
@@ -605,4 +615,27 @@ void term_clear(terminal_t* terminal)
 {
 	tsm_screen_erase_screen(terminal->term->screen, false);
 	term_redraw(terminal);
+}
+
+void term_background(void)
+{
+	if (in_background)
+		return;
+	in_background = true;
+	dbus_take_display_ownership();
+}
+
+void term_foreground(void)
+{
+	if (!in_background)
+		return;
+	in_background = false;
+	if (!dbus_release_display_ownership()) {
+		LOG(ERROR, "Chrome did not release master. Frecon will try to steal it.");
+		set_drm_master_relax();
+	}
+	if (hotplug_occured) {
+		hotplug_occured = false;
+		term_monitor_hotplug();
+	}
 }

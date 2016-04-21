@@ -557,14 +557,14 @@ void dbus_take_display_ownership(void)
 /*
  * ask Chrome to give up display ownership (DRM master)
  */
-void dbus_release_display_ownership(void)
+bool dbus_release_display_ownership(void)
 {
 	if (!dbus)
-		return;
-	(void)dbus_method_call0(kLibCrosServiceName,
-				kLibCrosServicePath,
-				kLibCrosServiceInterface,
-				kReleaseDisplayOwnership);
+		return true;
+	return dbus_method_call0(kLibCrosServiceName,
+				 kLibCrosServicePath,
+				 kLibCrosServiceInterface,
+				 kReleaseDisplayOwnership);
 }
 
 void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
@@ -618,8 +618,9 @@ void dbus_take_display_ownership(void)
 {
 }
 
-void dbus_release_display_ownership(void)
+bool dbus_release_display_ownership(void)
 {
+	return true;
 }
 
 bool dbus_is_initialized(void)
