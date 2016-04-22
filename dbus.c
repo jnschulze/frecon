@@ -57,12 +57,12 @@ static DBusHandlerResult handle_switchvt(DBusConnection* connection,
 			&vt, DBUS_TYPE_INVALID);
 
 	if (!stat) {
-		LOG(ERROR, "SwitchVT method error, no VT argument");
+		LOG(ERROR, "SwitchVT method error, no VT argument.");
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
 	if (vt > term_get_max_terminals()) {
-		LOG(ERROR, "SwtichVT: invalid terminal");
+		LOG(ERROR, "SwtichVT: invalid terminal.");
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
@@ -126,12 +126,12 @@ static DBusHandlerResult handle_makevt(DBusConnection* connection,
 			&vt, DBUS_TYPE_INVALID);
 
 	if (!stat) {
-		LOG(ERROR, "SwitchVT method error, not VT argument");
+		LOG(ERROR, "SwitchVT method error, not VT argument.");
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
 	if ((vt < 1) || (vt > term_get_max_terminals())) {
-		LOG(ERROR, "SwtichVT: invalid terminal");
+		LOG(ERROR, "SwtichVT: invalid terminal.");
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
@@ -181,7 +181,7 @@ static DBusHandlerResult handle_image(DBusConnection* connection,
 
 	image = image_create();
 	if (image == NULL) {
-		LOG(WARNING, "failed to create image");
+		LOG(WARNING, "Failed to create image.");
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
@@ -210,7 +210,8 @@ static DBusHandlerResult handle_image(DBusConnection* connection,
 
 	status = image_load_image_from_file(image);
 	if (status != 0) {
-		LOG(WARNING, "image_load_image_from_file failed: %d", status);
+		LOG(WARNING, "image_load_image_from_file(dbus) %s failed: %d:%s.",
+			image_get_filename(image), status, strerror(status));
 		goto fail;
 	}
 
@@ -220,7 +221,7 @@ static DBusHandlerResult handle_image(DBusConnection* connection,
 
 	status = term_show_image(terminal, image);
 	if (status != 0) {
-		LOG(WARNING, "term_show_image failed: %d", status);
+		LOG(WARNING, "term_show_image(dbus) failed: %d.", status);
 		goto fail;
 	}
 	image_release(image);

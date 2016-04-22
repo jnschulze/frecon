@@ -141,7 +141,8 @@ int splash_run(splash_t* splash)
 		image = splash->image_frames[i].image;
 		status = image_load_image_from_file(image);
 		if (status != 0) {
-			LOG(WARNING, "image_load_image_from_file failed: %d", status);
+			LOG(WARNING, "image_load_image_from_file %s failed: %d:%s.",
+				image_get_filename(image), status, strerror(status));
 			break;
 		}
 
@@ -169,12 +170,12 @@ int splash_run(splash_t* splash)
 
 		status = term_show_image(splash->terminal, image);
 		if (status != 0) {
-			LOG(WARNING, "term_show_image failed: %d", status);
+			LOG(WARNING, "term_show_image failed: %d:%s.", status, strerror(status));
 			break;
 		}
 		status = main_process_events(1);
 		if (status != 0) {
-			LOG(WARNING, "input_process failed: %d", status);
+			LOG(WARNING, "input_process failed: %d:%s.", status, strerror(status));
 			break;
 		}
 		last_show_ms = now_ms;

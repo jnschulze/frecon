@@ -4,6 +4,7 @@
  * found in the LICENSE file.
  */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <math.h>
 #include <stdio.h>
@@ -67,13 +68,14 @@ int image_load_image_from_file(image_t* image)
 	png_uint_32 width, height, pitch, row;
 	int bpp, color_type, interlace_mthd;
 	png_byte** rows;
+	int ret = 0;
 
 	if (image->layout.address != NULL)
-		return 1;
+		return EADDRINUSE;
 
 	fp = fopen(image->filename, "rb");
 	if (fp == NULL)
-		return 1;
+		return errno;
 
 	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	info = png_create_info_struct(png);
@@ -83,7 +85,8 @@ int image_load_image_from_file(image_t* image)
 
 	png_init_io(png, fp);
 
-	if (setjmp(png_jmpbuf(png)) != 0)
+	ret = setjmp(png_jmpbuf(png));
+	if (ret != 0)
 		goto fail;
 
 	png_read_info(png, info);
@@ -126,12 +129,15 @@ int image_load_image_from_file(image_t* image)
 	png_read_update_info(png, info);
 
 	rows = malloc(height * sizeof(*rows));
-	if (!rows)
+	if (!rows) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 
 	image->layout.address = malloc(height * pitch);
 	if (!image->layout.address) {
 		free(rows);
+		ret = -ENOMEM;
 		goto fail;
 	}
 
@@ -141,21 +147,16 @@ int image_load_image_from_file(image_t* image)
 	png_read_image(png, rows);
 	free(rows);
 
-	png_read_end(png, info);
-	fclose(fp);
-	fp = NULL;
-	png_destroy_read_struct(&png, &info, NULL);
-
 	image->width = width;
 	image->height = height;
 	image->pitch = pitch;
-
-	return 0;
+	png_read_end(png, info);
 
 fail:
 	png_destroy_read_struct(&png, &info, NULL);
 	fclose(fp);
-	return 1;
+	fp = NULL;
+	return ret;
 }
 
 int image_show(image_t* image, fb_t* fb)
@@ -223,6 +224,11 @@ void image_set_filename(image_t* image, char* filename)
 		free(image->filename);
 
 	image->filename = strdup(filename);
+}
+
+char* image_get_filename(image_t* image)
+{
+	return image->filename;
 }
 
 void image_set_offset(image_t* image, int32_t offset_x, int32_t offset_y)
