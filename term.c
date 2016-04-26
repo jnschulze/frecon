@@ -586,6 +586,7 @@ void term_monitor_hotplug(void)
 		if (!terminals[t]->fb)
 			continue;
 		fb_buffer_destroy(terminals[t]->fb);
+		font_free();
 	}
 
 	for (t = 0; t < MAX_TERMINALS; t++) {
@@ -605,6 +606,7 @@ void term_monitor_hotplug(void)
 void term_redrm(terminal_t* terminal)
 {
 	fb_buffer_destroy(terminal->fb);
+	font_free();
 	fb_buffer_init(terminal->fb);
 	term_resize(terminal);
 	terminal->term->age = 0;
