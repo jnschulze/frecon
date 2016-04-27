@@ -352,6 +352,12 @@ int main(int argc, char* argv[])
 	dbus_set_login_prompt_visible_callback(main_on_login_prompt_visible,
 					       (void*)splash);
 
+	/*
+	 * Ask DBUS to notify us when suspend has finished so monitors can be reprobed
+	 * in case they changed during suspend.
+	 */
+	dbus_set_suspend_done_callback(term_suspend_done, NULL);
+
 	if (command_flags.daemon) {
 		if (command_flags.enable_vts)
 			set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */

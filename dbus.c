@@ -28,6 +28,8 @@ typedef struct _dbus_t dbus_t;
 
 static void (*login_prompt_visible_callback)(void*) = NULL;
 static void* login_prompt_visible_callback_userptr = NULL;
+static void (*suspend_done_callback)(void*) = NULL;
+static void* suspend_done_callback_userptr = NULL;
 static bool chrome_is_already_up = false;
 static bool dbus_connect_fail = false;
 static int64_t dbus_connect_fail_time;
@@ -250,8 +252,7 @@ static DBusHandlerResult frecon_dbus_message_handler(DBusConnection* connection,
 	} else if (dbus_message_is_method_call(message,
 				kFreconDbusInterface, COMMAND_MAKE_VT)) {
 		return handle_makevt(connection, message);
-	}
-	else if (dbus_message_is_method_call(message,
+	} else if (dbus_message_is_method_call(message,
 				kFreconDbusInterface, COMMAND_TERMINATE)) {
 		return handle_terminate(connection, message);
 	} else if (dbus_message_is_method_call(message,
@@ -297,6 +298,14 @@ static DBusHandlerResult handle_login_prompt_visible(DBusMessage* message)
 	return DBUS_HANDLER_RESULT_HANDLED;
 }
 
+static DBusHandlerResult handle_suspend_done(DBusMessage* message)
+{
+	if (suspend_done_callback)
+		suspend_done_callback(suspend_done_callback_userptr);
+
+	return DBUS_HANDLER_RESULT_HANDLED;
+}
+
 static DBusHandlerResult frecon_dbus_message_filter(DBusConnection* connection,
 						    DBusMessage* message,
 						    void* user_data)
@@ -304,6 +313,9 @@ static DBusHandlerResult frecon_dbus_message_filter(DBusConnection* connection,
 	if (dbus_message_is_signal(message,
 				kSessionManagerInterface, kLoginPromptVisibleSignal))
 		return handle_login_prompt_visible(message);
+	else if (dbus_message_is_signal(message,
+				kPowerManagerInterface, kSuspendDoneSignal))
+		return handle_suspend_done(message);
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
@@ -366,6 +378,7 @@ bool dbus_init()
 	}
 
 	dbus_bus_add_match(new_dbus->conn, kLoginPromptVisibleRule, &err);
+	dbus_bus_add_match(new_dbus->conn, kSuspendDoneRule, &err);
 
 	stat = dbus_connection_add_filter(new_dbus->conn, frecon_dbus_message_filter, NULL, NULL);
 	if (!stat) {
@@ -584,6 +597,17 @@ void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
 	}
 }
 
+void dbus_set_suspend_done_callback(void (*callback)(void*),
+				    void* userptr)
+{
+	if (suspend_done_callback && callback) {
+		LOG(ERROR, "trying to register login prompt visible callback multiple times");
+		return;
+	}
+	suspend_done_callback = callback;
+	suspend_done_callback_userptr = userptr;
+}
+
 #else
 
 #include <stdlib.h>
@@ -631,6 +655,11 @@ bool dbus_is_initialized(void)
 
 void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
 					    void* userptr)
+{
+}
+
+void dbus_set_suspend_done_callback(void (*callback)(void*),
+				    void* userptr)
 {
 }
 

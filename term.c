@@ -641,3 +641,8 @@ void term_foreground(void)
 		term_monitor_hotplug();
 	}
 }
+
+void term_suspend_done(void* ignore)
+{
+	term_monitor_hotplug();
+}

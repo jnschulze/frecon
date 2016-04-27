@@ -56,4 +56,5 @@ void term_redrm(terminal_t* terminal);
 void term_clear(terminal_t* terminal);
 void term_background(void);
 void term_foreground(void);
+void term_suspend_done(void*);
 #endif

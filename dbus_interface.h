@@ -30,6 +30,9 @@ enum UserActivityType {
 	USER_ACTIVITY_VOLUME_MUTE_KEY_PRESS = 5,
 };
 
+static const char kSuspendDoneSignal[] = "SuspendDone";
+static const char kSuspendDoneRule[] = "interface='org.chromium.PowerManager',type='signal'";
+
 static const char kSessionManagerInterface[] = "org.chromium.SessionManagerInterface";
 static const char kSessionManagerServicePath[] = "/org/chromium/SessionManager";
 static const char kSessionManagerServiceName[] = "org.chromium.SessionManager";
