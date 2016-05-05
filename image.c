@@ -30,6 +30,7 @@ struct _image_t {
 	int32_t offset_y;
 	uint32_t location_x;
 	uint32_t location_y;
+	uint32_t scale;
 	uint32_t duration;
 	layout_t layout;
 	png_uint_32 width;
@@ -42,6 +43,7 @@ image_t* image_create()
 	image_t* image;
 
 	image = (image_t*)calloc(1, sizeof(image_t));
+	image->scale = 1;
 	return image;
 }
 
@@ -161,10 +163,11 @@ fail:
 
 int image_show(image_t* image, fb_t* fb)
 {
-	uint32_t j;
 	uint32_t* buffer;
-	uint32_t startx, starty;
-	uint32_t pitch;
+	int32_t startx, starty;
+	uint32_t pitch4;
+	int32_t x, y, w, h;
+	int32_t ox = 0, oy = 0;
 
 	buffer = fb_lock(fb);
 	if (buffer == NULL)
@@ -175,24 +178,58 @@ int image_show(image_t* image, fb_t* fb)
 		image->use_offset = false;
 	}
 
+	w = (int32_t)(image->width * image->scale);
+	h = (int32_t)(image->height * image->scale);
+
 	if (image->use_location) {
 		startx = image->location_x;
 		starty = image->location_y;
 	} else {
-		startx = (fb_getwidth(fb) - image->width)/2;
-		starty = (fb_getheight(fb) - image->height)/2;
+		startx = (fb_getwidth(fb) - w)/2;
+		starty = (fb_getheight(fb) - h)/2;
 	}
 
 	if (image->use_offset) {
-		startx += image->offset_x;
-		starty += image->offset_y;
+		startx += image->offset_x * (int32_t)image->scale;
+		starty += image->offset_y * (int32_t)image->scale;
 	}
 
-	pitch = fb_getpitch(fb);
+	pitch4 = fb_getpitch(fb) / 4;
 
-	for (j = starty; j < starty + image->height; j++)
-		memcpy(buffer + j * pitch/4 + startx,
-				image->layout.address + (j - starty)*image->pitch, image->pitch);
+	if (startx >= fb_getwidth(fb) || startx + w <= 0)
+		return 0;
+
+	if (starty >= fb_getheight(fb) || starty + h <= 0)
+		return 0;
+
+	if (startx < 0) {
+		ox = -startx;
+		w += startx;
+		startx = 0;
+	}
+
+	if (startx + w > fb_getwidth(fb))
+		w = fb_getwidth(fb) - startx;
+
+	if (starty < 0) {
+		oy = -starty;
+		h += starty;
+		starty = 0;
+	}
+
+	if (starty + h > fb_getheight(fb))
+		h = fb_getheight(fb) - starty;
+
+	for (y = 0; y < h; y++) {
+		uint32_t *o = buffer + (starty + y) * pitch4 + startx;
+		int32_t iy = (oy + y) / image->scale;
+		uint32_t *i = image->layout.as_pixels + iy * (image->pitch >> 2);
+
+		for (x = 0; x < w; x++) {
+			int32_t ix = (ox + x) / image->scale;
+			o[x] = i[ix];
+		}
+	}
 
 	fb_unlock(fb);
 	return 0;
@@ -246,4 +283,22 @@ void image_set_location(image_t* image,
 	image->location_y = location_y;
 
 	image->use_location = true;
+}
+
+void image_set_scale(image_t* image, uint32_t scale)
+{
+	if (scale > MAX_SCALE_FACTOR)
+		scale = MAX_SCALE_FACTOR;
+	if (scale == 0)
+		image->scale = 1;
+	else
+		image->scale = scale;
+}
+
+int32_t image_get_auto_scale(fb_t* fb)
+{
+	if (fb_getwidth(fb) > HIRES_THRESHOLD_HR)
+		return 2;
+	else
+		return 1;
 }

@@ -37,6 +37,7 @@
 #define  FLAG_LOOP_OFFSET                  'o'
 #define  FLAG_OFFSET                       'O'
 #define  FLAG_PRINT_RESOLUTION             'p'
+#define  FLAG_SCALE                        'S'
 #define  FLAG_SPLASH_ONLY                  's'
 
 static struct option command_options[] = {
@@ -54,6 +55,7 @@ static struct option command_options[] = {
 	{ "loop-offset", required_argument, NULL, FLAG_LOOP_OFFSET },
 	{ "offset", required_argument, NULL, FLAG_OFFSET },
 	{ "print-resolution", no_argument, NULL, FLAG_PRINT_RESOLUTION },
+	{ "scale", required_argument, NULL, FLAG_SCALE },
 	{ "splash-only", no_argument, NULL, FLAG_SPLASH_ONLY },
 	{ NULL, 0, NULL, 0 }
 };
@@ -315,6 +317,10 @@ int main(int argc, char* argv[])
 			case FLAG_OFFSET:
 				parse_offset(optarg, &x, &y);
 				splash_set_offset(splash, x, y);
+				break;
+
+			case FLAG_SCALE:
+				splash_set_scale(splash, strtoul(optarg, NULL, 0));
 				break;
 
 			case FLAG_SPLASH_ONLY:

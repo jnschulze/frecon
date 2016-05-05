@@ -44,6 +44,7 @@ struct _splash_t {
 	int32_t offset_y;
 	int32_t loop_offset_x;
 	int32_t loop_offset_y;
+	uint32_t scale;
 };
 
 
@@ -60,6 +61,7 @@ splash_t* splash_init()
 	splash->loop_count = -1;
 	splash->default_duration = 25;
 	splash->loop_duration = 25;
+	splash->scale = 1;
 
 	return splash;
 }
@@ -101,6 +103,10 @@ int splash_add_image(splash_t* splash, char* filespec)
 	image = image_create();
 	image_set_filename(image, filename);
 	image_set_offset(image, offset_x, offset_y);
+	if (splash->scale == 0)
+		image_set_scale(image, splash_is_hires(splash) ? 2 : 1);
+	else
+		image_set_scale(image, splash->scale);
 	splash->image_frames[splash->num_images].image = image;
 	splash->image_frames[splash->num_images].duration = duration;
 	splash->num_images++;
@@ -243,6 +249,14 @@ void splash_set_loop_offset(splash_t* splash, int32_t x, int32_t y)
 	}
 }
 
+void splash_set_scale(splash_t* splash, uint32_t scale)
+{
+	if (scale > MAX_SCALE_FACTOR)
+		scale = MAX_SCALE_FACTOR;
+	if (splash)
+		splash->scale = scale;
+}
+
 void splash_present_term_file(splash_t* splash)
 {
 	fprintf(stdout, "%s\n", term_get_ptsname(splash->terminal));
@@ -251,7 +265,7 @@ void splash_present_term_file(splash_t* splash)
 int splash_is_hires(splash_t* splash)
 {
 	if (splash && splash->terminal && term_getfb(splash->terminal))
-		return fb_getwidth(term_getfb(splash->terminal)) > 1920;
+		return fb_getwidth(term_getfb(splash->terminal)) > HIRES_THRESHOLD_HR;
 	return 0;
 }
 
