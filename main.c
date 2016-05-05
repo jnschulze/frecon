@@ -26,6 +26,7 @@
 
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
+#define  FLAG_ENABLE_GFX                   'G'
 #define  FLAG_ENABLE_VTS                   'e'
 #define  FLAG_FRAME_INTERVAL               'f'
 #define  FLAG_GAMMA                        'g'
@@ -44,6 +45,7 @@ static struct option command_options[] = {
 	{ "clear", required_argument, NULL, FLAG_CLEAR },
 	{ "daemon", no_argument, NULL, FLAG_DAEMON },
 	{ "dev-mode", no_argument, NULL, FLAG_ENABLE_VTS },
+	{ "enable-gfx", no_argument, NULL, FLAG_ENABLE_GFX },
 	{ "enable-vts", no_argument, NULL, FLAG_ENABLE_VTS },
 	{ "frame-interval", required_argument, NULL, FLAG_FRAME_INTERVAL },
 	{ "gamma", required_argument, NULL, FLAG_GAMMA },
@@ -281,6 +283,10 @@ int main(int argc, char* argv[])
 
 			case FLAG_FRAME_INTERVAL:
 				splash_set_default_duration(splash, strtoul(optarg, NULL, 0));
+				break;
+
+			case FLAG_ENABLE_GFX:
+				command_flags.enable_gfx = true;
 				break;
 
 			case FLAG_ENABLE_VTS:

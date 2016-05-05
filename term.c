@@ -14,6 +14,7 @@
 #include "dbus.h"
 #include "fb.h"
 #include "font.h"
+#include "image.h"
 #include "input.h"
 #include "main.h"
 #include "shl_pty.h"
@@ -166,6 +167,189 @@ static void term_write_cb(struct tsm_vte* vte, const char* u8, size_t len,
 	shl_pty_dispatch(term->pty);
 }
 
+static void term_esc_show_image(terminal_t* terminal, char* params)
+{
+	char* tok;
+	image_t* image;
+	int status;
+
+	image = image_create();
+	if (!image) {
+		LOG(ERROR, "Out of memory when creating an image.\n");
+		return;
+	}
+	for (tok = strtok(params, ";"); tok; tok = strtok(NULL, ";")) {
+		if (strncmp("file=", tok, 5) == 0) {
+			image_set_filename(image, tok + 5);
+		} else if (strncmp("location=", tok, 9) == 0) {
+			uint32_t x, y;
+			if (sscanf(tok + 9, "%u,%u", &x, &y) != 2) {
+				LOG(ERROR, "Error parsing image location.\n");
+				goto done;
+			}
+			image_set_location(image, x, y);
+		} else if (strncmp("offset=", tok, 7) == 0) {
+			int32_t x, y;
+			if (sscanf(tok + 7, "%d,%d", &x, &y) != 2) {
+				LOG(ERROR, "Error parsing image offset.\n");
+				goto done;
+			}
+			image_set_offset(image, x, y);
+		} else if (strncmp("scale=", tok, 6) == 0) {
+			uint32_t s;
+			if (sscanf(tok + 6, "%u", &s) != 1) {
+				LOG(ERROR, "Error parsing image scale.\n");
+				goto done;
+			}
+			if (s == 0)
+				s = image_get_auto_scale(term_getfb(terminal));
+			image_set_scale(image, s);
+		}
+	}
+
+	status = image_load_image_from_file(image);
+	if (status != 0) {
+		LOG(WARNING, "Term ESC image_load_image_from_file %s failed: %d:%s.",
+	        image_get_filename(image), status, strerror(status));
+	} else {
+		term_show_image(terminal, image);
+	}
+done:
+	image_destroy(image);
+}
+
+static void term_esc_draw_box(terminal_t* terminal, char* params)
+{
+	char* tok;
+	uint32_t color = 0;
+	uint32_t w = 1;
+	uint32_t h = 1;
+	uint32_t locx, locy;
+	bool use_location = false;
+	int32_t offx, offy;
+	bool use_offset = false;
+	uint32_t scale = 1;
+	uint32_t* buffer;
+	int32_t startx, starty;
+	uint32_t pitch4;
+
+	for (tok = strtok(params, ";"); tok; tok = strtok(NULL, ";")) {
+		if (strncmp("color=", tok, 6) == 0) {
+			color = strtoul(tok + 6, NULL, 0);
+		} else if (strncmp("size=", tok, 5) == 0) {
+			if (sscanf(tok + 5, "%u,%u", &w, &h) != 2) {
+				LOG(ERROR, "Error parsing box size.\n");
+				goto done;
+			}
+		} else if (strncmp("location=", tok, 9) == 0) {
+			if (sscanf(tok + 9, "%u,%u", &locx, &locy) != 2) {
+				LOG(ERROR, "Error parsing box location.\n");
+				goto done;
+			}
+			use_location = true;
+		} else if (strncmp("offset=", tok, 7) == 0) {
+			if (sscanf(tok + 7, "%d,%d", &offx, &offy) != 2) {
+				LOG(ERROR, "Error parsing box offset.\n");
+				goto done;
+			}
+			use_offset = true;
+		} else if (strncmp("scale=", tok, 6) == 0) {
+			if (sscanf(tok + 6, "%u", &scale) != 1) {
+				LOG(ERROR, "Error parsing box scale.\n");
+				goto done;
+			}
+			if (scale == 0)
+				scale = image_get_auto_scale(term_getfb(terminal));
+		}
+	}
+
+	w *= scale;
+	h *= scale;
+	offx *= scale;
+	offy *= scale;
+
+	buffer = fb_lock(terminal->fb);
+	if (buffer == NULL)
+		goto done;
+
+	if (use_offset && use_location) {
+		LOG(WARNING, "Box offset and location set, using location.");
+		use_offset = false;
+	}
+
+	if (use_location) {
+		startx = locx;
+		starty = locy;
+	} else {
+		startx = (fb_getwidth(terminal->fb) - (int32_t)w)/2;
+		starty = (fb_getheight(terminal->fb) - (int32_t)h)/2;
+	}
+
+	if (use_offset) {
+		startx += offx;
+		starty += offy;
+	}
+
+	pitch4 = fb_getpitch(terminal->fb) / 4;
+
+	/* Completely outside buffer, do nothing */
+	if (startx + w <= 0 || startx >= fb_getwidth(terminal->fb))
+		goto done_fb;
+	if (starty + h <= 0 || starty >= fb_getheight(terminal->fb))
+		goto done_fb;
+	/* Make sure we are inside buffer. */
+	if (startx < 0)
+		startx = 0;
+	if (startx + (int32_t)w > fb_getwidth(terminal->fb))
+		w = fb_getwidth(terminal->fb) - startx;
+	if (starty < 0)
+		starty = 0;
+	if (starty + (int32_t)h > fb_getheight(terminal->fb))
+		h = fb_getheight(terminal->fb) - starty;
+
+	for (uint32_t y = 0; y < h; y++) {
+		uint32_t *o = buffer + (starty + y) * pitch4
+			    + startx;
+		for (uint32_t x = 0; x < w; x++)
+			o[x] = color;
+	}
+done_fb:
+	fb_unlock(terminal->fb);
+done:
+	;
+}
+
+static void term_osc_cb(struct tsm_vte *vte, const uint32_t *osc_string,
+			size_t osc_len, void *data)
+{
+	terminal_t* terminal = (terminal_t*)data;
+	size_t i;
+	char *osc;
+
+	for (i = 0; i < osc_len; i++)
+		if (osc_string[i] >= 128)
+			return; /* we only want to deal with ASCII */
+
+	osc = malloc(osc_len + 1);
+	if (!osc) {
+		LOG(WARNING, "Out of memory when processing OSC\n");
+		return;
+	}
+
+	for (i = 0; i < osc_len; i++)
+		osc[i] = (char)osc_string[i];
+	osc[i] = '\0';
+
+	if (strncmp(osc, "image:", 6) == 0)
+		term_esc_show_image(terminal, osc + 6);
+	else if (strncmp(osc, "box:", 4) == 0)
+		term_esc_draw_box(terminal, osc + 4);
+	else
+		LOG(WARNING, "Unknown OSC escape sequence \"%s\", ignoring.", osc);
+
+	free(osc);
+}
+
 static const char* sev2str_table[] = {
 	"FATAL",
 	"ALERT",
@@ -272,6 +456,9 @@ terminal_t* term_init(bool interactive)
 		term_close(new_terminal);
 		return NULL;
 	}
+
+	if (command_flags.enable_gfx)
+		tsm_vte_set_osc_cb(new_terminal->term->vte, term_osc_cb, (void *)new_terminal);
 
 	new_terminal->term->pty_bridge = shl_pty_bridge_new();
 	if (new_terminal->term->pty_bridge < 0) {

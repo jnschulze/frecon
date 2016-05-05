@@ -281,4 +281,3 @@ int32_t fb_getscaling(fb_t* fb)
 {
 	return fb->buffer_properties.scaling;
 }
-
