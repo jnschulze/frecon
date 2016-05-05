@@ -435,7 +435,7 @@ terminal_t* term_init(bool interactive)
 		return NULL;
 	}
 
-	if (interactive)
+	if (interactive && !command_flags.no_login)
 		new_terminal->exec = interactive_cmd_line;
 	else
 		new_terminal->exec = noninteractive_cmd_line;

@@ -15,6 +15,7 @@ typedef struct {
 	bool    enable_vts;
 	bool    splash_only;
 	bool    enable_gfx;
+	bool    no_login;
 } commandflags_t;
 
 extern commandflags_t command_flags;

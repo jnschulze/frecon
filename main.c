@@ -36,6 +36,7 @@
 #define  FLAG_LOOP_START                   'l'
 #define  FLAG_LOOP_INTERVAL                'L'
 #define  FLAG_LOOP_OFFSET                  'o'
+#define  FLAG_NO_LOGIN                     'n'
 #define  FLAG_OFFSET                       'O'
 #define  FLAG_PRINT_RESOLUTION             'p'
 #define  FLAG_SCALE                        'S'
@@ -55,6 +56,7 @@ static struct option command_options[] = {
 	{ "loop-start", required_argument, NULL, FLAG_LOOP_START },
 	{ "loop-interval", required_argument, NULL, FLAG_LOOP_INTERVAL },
 	{ "loop-offset", required_argument, NULL, FLAG_LOOP_OFFSET },
+	{ "no-login", no_argument, NULL, FLAG_NO_LOGIN },
 	{ "offset", required_argument, NULL, FLAG_OFFSET },
 	{ "print-resolution", no_argument, NULL, FLAG_PRINT_RESOLUTION },
 	{ "scale", required_argument, NULL, FLAG_SCALE },
@@ -318,6 +320,10 @@ int main(int argc, char* argv[])
 			case FLAG_LOOP_OFFSET:
 				parse_offset(optarg, &x, &y);
 				splash_set_loop_offset(splash, x, y);
+				break;
+
+			case FLAG_NO_LOGIN:
+				command_flags.no_login = true;
 				break;
 
 			case FLAG_OFFSET:
