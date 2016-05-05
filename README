@@ -4,3 +4,79 @@ This is a terminal emulator that replaces the kernel Virtual Terminal (VT)
 console.  It uses the Kernel Mode Setting (KMS) support in the kernel.  It
 is similar to the kmscon project:
 	http://www.freedesktop.org/wiki/Software/kmscon
+
+
+Command line options:
+
+--clear=color
+	Specify clear color for splash screen terminal. The color is 32 bit
+integer in a framebuffer format (ARGB) in any format supported by strtoul.
+--daemon
+	Daemonize frecon.
+--enable-gfx
+	Enable image and box drawing OSC escape codes.
+--enable-vts
+	Enable additional terminals in addition to splash screen.
+--frame-interval=N
+	Specify default time (in miliseconds) between frames of splash screen
+animation.
+--gamma=/path/to/gamma/table
+	Specify gamma table to apply. (unimplemented)
+--loop-start=N
+	Specify frame to start splash animation loop. This option also enables
+the animation loop.
+--loop-count=N
+	Specify number of splash animation loop repetitions. (default of 0
+repeats forever) Looping has to be enabled using --loop-start
+--loop-interval=N
+	Specify default time (in miliseconds) between frames of loop animation.
+--loop-offset=x,y
+	Specify default offset to centered image in loop.
+--no-login
+	When additional terminals are enabled do not display login prompt on
+them. Can be used by scripts to display debugging information and logs on
+additional terminals.
+--offset=x,y
+	Specify absolute location of the splash image on screen.
+--print-resolution
+	Print detected screen resolution and exit. Deprecated.
+--scale=N
+	Set default scale for splash screen images. The scale is a positive
+integer number. Default scale is 1. 0 has a special meaning - using scale 1
+for screens with horizontal resolution lower and equal than 1920 and 2 otherwise.
+Scale affects image/box size and offset.
+--splash-only
+	Exit immediately after finishing splash animation. Otherwise frecon
+will wait for DBUS signal (LoginScreenVisible) from Chrome before exiting
+when extra terminals are not enabled.
+--image=/path/to/image.png
+--image-hires=/path/to/image.png
+or any image file name specified after options
+	Add image to splash screen animation. --image and --image-hires are
+added conditionally depending whether horizontal screen resolution is below
+or abover 1920. This allows frecon to make runtime decision which set of images
+to use instead running frecon first with --print-resolution option and making
+this decision in a script that invokes frecon.
+Free form image file name in the command line are added unconditionally.
+
+Imaging escape codes:
+	Frecon implements rudimentary functionality to display images and draw
+single color boxes on the terminal screen using OSC (Operating System Command)
+based terminal escape codes.
+
+The escape always starts with \033] for OSC code and ends with \033\ ST code.
+Two escapes are implemented, all escape parameters can be specified in any order.
+
+image:file=/full/path/to/file.png;location=x,y;offset=x,y;scale=s
+
+box:size=w,h;color=c;location=x,y;offset=x,y;scale=s
+
+location is absolute location on screen.
+offset is an image offset starting with image centered on screen.
+color is a 32bit number in the same format as --clear command line argument, it defaults to 0
+size is two integer numbers
+scale is integer scaling factor applied to image size or box size
+
+Examples are
+echo -ne "\033]image:file=/usr/share/chromeos-assets/images_100_percent/boot_splash_frame18.png\033\\" > /dev/pts/1
+echo -ne "\033]box:color=0xFFFFFFFF;size=100,100\033\\" > /dev/pts/1
