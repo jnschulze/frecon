@@ -254,11 +254,18 @@ void fb_unlock(fb_t* fb)
 		LOG(ERROR, "fb locking unbalanced");
 
 	if (fb->lock.count == 0 && fb->buffer_handle > 0) {
+		int32_t ret;
 		struct drm_clip_rect clip_rect = {
 			0, 0, fb->buffer_properties.width, fb->buffer_properties.height
 		};
 		munmap(fb->lock.map, fb->buffer_properties.size);
-		drmModeDirtyFB(fb->drm->fd, fb->fb_id, &clip_rect, 1);
+		ret = drmSetMaster(fb->drm->fd);
+		if (ret)
+			LOG(ERROR, "drmSetMaster failed: %m");
+		ret = drmModeDirtyFB(fb->drm->fd, fb->fb_id, &clip_rect, 1);
+		if (ret)
+			LOG(ERROR, "drmModeDirtyFB failed: %m");
+		drm_dropmaster(fb->drm);
 	}
 }
 
