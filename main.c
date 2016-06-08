@@ -379,7 +379,6 @@ int main(int argc, char* argv[])
 	if (command_flags.daemon) {
 		if (command_flags.enable_vts)
 			set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */
-		drm_dropmaster(drm);
 		term_background();
 	} else {
 		/* Create and switch to first term in interactve mode. */

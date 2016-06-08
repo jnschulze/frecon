@@ -259,13 +259,9 @@ void fb_unlock(fb_t* fb)
 			0, 0, fb->buffer_properties.width, fb->buffer_properties.height
 		};
 		munmap(fb->lock.map, fb->buffer_properties.size);
-		ret = drmSetMaster(fb->drm->fd);
-		if (ret)
-			LOG(ERROR, "drmSetMaster failed: %m");
 		ret = drmModeDirtyFB(fb->drm->fd, fb->fb_id, &clip_rect, 1);
 		if (ret)
 			LOG(ERROR, "drmModeDirtyFB failed: %m");
-		drm_dropmaster(fb->drm);
 	}
 }
 

@@ -811,11 +811,13 @@ void term_background(void)
 	if (in_background)
 		return;
 	in_background = true;
+	drm_dropmaster(NULL);
 	dbus_take_display_ownership();
 }
 
 void term_foreground(void)
 {
+	int ret;
 	if (!in_background)
 		return;
 	in_background = false;
@@ -823,6 +825,18 @@ void term_foreground(void)
 		LOG(ERROR, "Chrome did not release master. Frecon will try to steal it.");
 		set_drm_master_relax();
 	}
+
+	ret = drm_setmaster(NULL);
+	if (ret < 0) {
+		/*
+		 * In case there is high system load give Chrome some time
+		 * and try again. */
+		usleep(500 * 1000);
+		ret = drm_setmaster(NULL);
+	}
+	if (ret < 0)
+		LOG(ERROR, "Could not set master when switching to foreground %m.");
+
 	if (hotplug_occured) {
 		hotplug_occured = false;
 		term_monitor_hotplug();

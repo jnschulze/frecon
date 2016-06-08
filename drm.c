@@ -19,7 +19,7 @@
 #include "input.h"
 #include "util.h"
 
-static drm_t* drm = NULL;
+static drm_t* g_drm = NULL;
 
 static void drm_disable_crtc(drm_t* drm, drmModeCrtc* crtc)
 {
@@ -401,18 +401,18 @@ try_open_again:
 
 void drm_set(drm_t* drm_)
 {
-	if (drm) {
-		drm_delref(drm);
-		drm = NULL;
+	if (g_drm) {
+		drm_delref(g_drm);
+		g_drm = NULL;
 	}
-	drm = drm_;
+	g_drm = drm_;
 }
 
 void drm_close(void)
 {
-	if (drm) {
-		drm_delref(drm);
-		drm = NULL;
+	if (g_drm) {
+		drm_delref(g_drm);
+		g_drm = NULL;
 	}
 }
 
@@ -434,19 +434,34 @@ void drm_delref(drm_t* drm)
 
 drm_t* drm_addref(void)
 {
-	if (drm) {
-		drm->refcount++;
-		return drm;
+	if (g_drm) {
+		g_drm->refcount++;
+		return g_drm;
 	}
 
 	return NULL;
 }
 
-void drm_dropmaster(drm_t* drm)
+int drm_dropmaster(drm_t* drm)
 {
-	if (drm) {
-		drmDropMaster(drm->fd);
-	}
+	int ret = 0;
+
+	if (!drm)
+		drm = g_drm;
+	if (drm)
+		ret = drmDropMaster(drm->fd);
+	return ret;
+}
+
+int drm_setmaster(drm_t* drm)
+{
+	int ret = 0;
+
+	if (!drm)
+		drm = g_drm;
+	if (drm)
+		ret = drmSetMaster(drm->fd);
+	return ret;
 }
 
 /*
@@ -457,20 +472,22 @@ bool drm_rescan(void)
 	drm_t* ndrm;
 
 	/* In case we had master, drop master so the newly created object could have it. */
-	drm_dropmaster(drm);
+	drm_dropmaster(g_drm);
 	ndrm = drm_scan();
 	if (ndrm) {
-		if (drm_equal(ndrm, drm)) {
+		if (drm_equal(ndrm, g_drm)) {
 			drm_fini(ndrm);
+			/* Regain master we dropped. */
+			drm_setmaster(g_drm);
 		} else {
-			drm_delref(drm);
-			drm = ndrm;
+			drm_delref(g_drm);
+			g_drm = ndrm;
 			return true;
 		}
 	} else {
-		if (drm) {
-			drm_delref(drm); /* No usable monitor/drm object. */
-			drm = NULL;
+		if (g_drm) {
+			drm_delref(g_drm); /* No usable monitor/drm object. */
+			g_drm = NULL;
 			return true;
 		}
 	}
@@ -484,11 +501,6 @@ bool drm_valid(drm_t* drm) {
 int32_t drm_setmode(drm_t* drm, uint32_t fb_id)
 {
 	int32_t ret;
-
-	ret = drmSetMaster(drm->fd);
-	if (ret)
-		LOG(ERROR, "drmSetMaster failed: %m");
-
 	ret = drmModeSetCrtc(drm->fd, drm->crtc->crtc_id,
 			     fb_id,
 			     0, 0,  // x,y
@@ -498,7 +510,6 @@ int32_t drm_setmode(drm_t* drm, uint32_t fb_id)
 
 	if (ret) {
 		LOG(ERROR, "Unable to set crtc: %m");
-		drm_dropmaster(drm);
 		return ret;
 	}
 
@@ -510,7 +521,6 @@ int32_t drm_setmode(drm_t* drm, uint32_t fb_id)
 
 	drm_disable_non_primary_planes(drm);
 	drm_disable_non_main_crtcs(drm);
-	drm_dropmaster(drm);
 	return ret;
 }
 
