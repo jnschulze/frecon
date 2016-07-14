@@ -260,7 +260,7 @@ void fb_unlock(fb_t* fb)
 		};
 		munmap(fb->lock.map, fb->buffer_properties.size);
 		ret = drmModeDirtyFB(fb->drm->fd, fb->fb_id, &clip_rect, 1);
-		if (ret)
+		if (ret && errno != ENOSYS)
 			LOG(ERROR, "drmModeDirtyFB failed: %m");
 	}
 }
