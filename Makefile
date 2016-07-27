@@ -11,6 +11,8 @@ ifeq ($(DBUS),1)
 PC_DEPS += dbus-1
 CPPFLAGS += -DDBUS=1
 endif
+TARGET ?= frecon
+
 PC_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PC_DEPS))
 PC_LIBS := $(shell $(PKG_CONFIG) --libs $(PC_DEPS))
 
@@ -25,12 +27,12 @@ $(OUT)glyphs.h: $(SRC)/font_to_c.py $(SRC)/ter-u16n.bdf
 
 font.o.depends: $(OUT)glyphs.h
 
-CC_BINARY(frecon): $(C_OBJECTS)
+CC_BINARY($(TARGET)): $(C_OBJECTS)
 
-all: CC_BINARY(frecon)
+all: CC_BINARY($(TARGET))
 
-clean: CLEAN(frecon)
+clean: CLEAN($(TARGET))
 
 install: all
 	mkdir -p $(DESTDIR)/sbin
-	install -m 755 $(OUT)/frecon $(DESTDIR)/sbin
+	install -m 755 $(OUT)/$(TARGET) $(DESTDIR)/sbin
