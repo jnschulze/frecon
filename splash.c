@@ -66,14 +66,16 @@ splash_t* splash_init()
 	return splash;
 }
 
-int splash_destroy(splash_t* splash)
+int splash_destroy(splash_t* splash, bool keep_term)
 {
 	if (splash->terminal) {
-		term_close(splash->terminal);
+		if (!keep_term)
+			term_close(splash->terminal);
 		splash->terminal = NULL;
 	}
 	free(splash);
-	term_destroy_splash_term();
+	if (!keep_term)
+		term_destroy_splash_term();
 	return 0;
 }
 
@@ -213,7 +215,8 @@ img_error:
 		image_destroy(splash->image_frames[i].image);
 	}
 
-	term_set_current_to(NULL);
+	if (!command_flags.enable_vt1)
+		term_set_current_to(NULL);
 
 	return status;
 }

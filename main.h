@@ -13,6 +13,7 @@ bool set_drm_master_relax(void);
 typedef struct {
 	bool    daemon;
 	bool    enable_vts;
+	bool    enable_vt1;
 	bool    splash_only;
 	bool    enable_gfx;
 	bool    no_login;

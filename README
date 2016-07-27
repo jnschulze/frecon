@@ -17,6 +17,9 @@ integer in a framebuffer format (ARGB) in any format supported by strtoul.
 	Enable image and box drawing OSC escape codes.
 --enable-vts
 	Enable additional terminals in addition to splash screen.
+--enable-vt1
+	Enable switching to VT1 (aka splash screen) and keep a terminal on it
+after finishing splash animation.
 --frame-interval=N
 	Specify default time (in miliseconds) between frames of splash screen
 animation.

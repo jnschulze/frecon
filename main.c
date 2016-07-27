@@ -27,6 +27,7 @@
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
 #define  FLAG_ENABLE_GFX                   'G'
+#define  FLAG_ENABLE_VT1                   '1'
 #define  FLAG_ENABLE_VTS                   'e'
 #define  FLAG_FRAME_INTERVAL               'f'
 #define  FLAG_GAMMA                        'g'
@@ -47,6 +48,7 @@ static struct option command_options[] = {
 	{ "daemon", no_argument, NULL, FLAG_DAEMON },
 	{ "dev-mode", no_argument, NULL, FLAG_ENABLE_VTS },
 	{ "enable-gfx", no_argument, NULL, FLAG_ENABLE_GFX },
+	{ "enable-vt1", no_argument, NULL, FLAG_ENABLE_VT1 },
 	{ "enable-vts", no_argument, NULL, FLAG_ENABLE_VTS },
 	{ "frame-interval", required_argument, NULL, FLAG_FRAME_INTERVAL },
 	{ "gamma", required_argument, NULL, FLAG_GAMMA },
@@ -134,7 +136,7 @@ int main_process_events(uint32_t usec)
 
 	if (term_is_valid(terminal)) {
 		if (term_is_child_done(terminal)) {
-			if (terminal == term_get_terminal(SPLASH_TERMINAL)) {
+			if (terminal == term_get_terminal(SPLASH_TERMINAL) && !command_flags.enable_vt1) {
 				/*
 				 * Note: reference is not lost because it is still referenced
 				 * by the splash_t structure which will ultimately destroy
@@ -203,7 +205,9 @@ static void main_on_login_prompt_visible(void* ptr)
 	} else
 	if (ptr) {
 		LOG(INFO, "Chrome started, splash screen is not needed anymore.");
-		splash_destroy((splash_t*)ptr);
+		if (command_flags.enable_vt1)
+			LOG(WARNING, "VT1 enabled and Chrome is active!");
+		splash_destroy((splash_t*)ptr, false);
 	}
 }
 
@@ -217,14 +221,37 @@ int main(int argc, char* argv[])
 
 	fix_stdio();
 
-	/* Find out if we are going to be a daemon .*/
 	optind = 1;
 	for (;;) {
 		c = getopt_long(argc, argv, "", command_options, NULL);
-		if (c == -1) {
+
+		if (c == -1)
 			break;
-		} else if (c == FLAG_DAEMON) {
-			command_flags.daemon = true;
+
+		switch (c) {
+			case FLAG_DAEMON:
+				command_flags.daemon = true;
+				break;
+
+			case FLAG_ENABLE_GFX:
+				command_flags.enable_gfx = true;
+				break;
+
+			case FLAG_ENABLE_VT1:
+				command_flags.enable_vt1 = true;
+				break;
+
+			case FLAG_ENABLE_VTS:
+				command_flags.enable_vts = true;;
+				break;
+
+			case FLAG_NO_LOGIN:
+				command_flags.no_login = true;
+				break;
+
+			case FLAG_SPLASH_ONLY:
+				command_flags.splash_only = true;
+				break;
 		}
 	}
 
@@ -273,6 +300,7 @@ int main(int argc, char* argv[])
 	/* Update DRM object in splash term and set video mode. */
 	splash_redrm(splash);
 
+	/* These flags can be only processed after splash object has been created. */
 	optind = 1;
 	for (;;) {
 		c = getopt_long(argc, argv, "", command_options, NULL);
@@ -287,14 +315,6 @@ int main(int argc, char* argv[])
 
 			case FLAG_FRAME_INTERVAL:
 				splash_set_default_duration(splash, strtoul(optarg, NULL, 0));
-				break;
-
-			case FLAG_ENABLE_GFX:
-				command_flags.enable_gfx = true;
-				break;
-
-			case FLAG_ENABLE_VTS:
-				command_flags.enable_vts = true;
 				break;
 
 			case FLAG_IMAGE:
@@ -324,10 +344,6 @@ int main(int argc, char* argv[])
 				splash_set_loop_offset(splash, x, y);
 				break;
 
-			case FLAG_NO_LOGIN:
-				command_flags.no_login = true;
-				break;
-
 			case FLAG_OFFSET:
 				parse_offset(optarg, &x, &y);
 				splash_set_offset(splash, x, y);
@@ -335,10 +351,6 @@ int main(int argc, char* argv[])
 
 			case FLAG_SCALE:
 				splash_set_scale(splash, strtoul(optarg, NULL, 0));
-				break;
-
-			case FLAG_SPLASH_ONLY:
-				command_flags.splash_only = true;
 				break;
 		}
 	}
@@ -354,8 +366,10 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if (command_flags.splash_only)
+	if (command_flags.splash_only) {
+		splash_destroy(splash, false);
 		goto main_done;
+	}
 
 	/*
 	 * The DBUS service launches later than the boot-splash service, and
@@ -371,7 +385,9 @@ int main(int argc, char* argv[])
 	 */
 	dbus_set_login_prompt_visible_callback(main_on_login_prompt_visible,
 					       (void*)splash);
-
+#if !DBUS
+	splash_destroy(splash, command_flags.enable_vt1);
+#endif
 	/*
 	 * Ask DBUS to notify us when suspend has finished so monitors can be reprobed
 	 * in case they changed during suspend.
@@ -381,7 +397,8 @@ int main(int argc, char* argv[])
 	if (command_flags.daemon) {
 		if (command_flags.enable_vts)
 			set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */
-		term_background();
+		if (!command_flags.enable_vt1)
+			term_background();
 	} else {
 		/* Create and switch to first term in interactve mode. */
 		terminal_t* terminal;

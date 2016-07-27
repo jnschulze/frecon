@@ -696,7 +696,7 @@ terminal_t* term_create_term(int vt)
 
 terminal_t* term_create_splash_term()
 {
-	terminal_t* splash_terminal = term_init(false);
+	terminal_t* splash_terminal = term_init(command_flags.enable_vt1);
 	term_set_terminal(SPLASH_TERMINAL, splash_terminal);
 
 	// Hide the cursor on the splash screen

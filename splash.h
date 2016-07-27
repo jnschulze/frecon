@@ -10,7 +10,7 @@
 typedef struct _splash_t splash_t;
 
 int splash_add_image(splash_t*, char* filespec);
-int splash_destroy(splash_t*);
+int splash_destroy(splash_t*, bool);
 splash_t* splash_init();
 int splash_is_hires(splash_t* splash);
 int splash_num_images(splash_t* splash);
