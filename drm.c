@@ -501,6 +501,9 @@ bool drm_valid(drm_t* drm) {
 int32_t drm_setmode(drm_t* drm, uint32_t fb_id)
 {
 	int32_t ret;
+
+	drm_disable_non_main_crtcs(drm);
+
 	ret = drmModeSetCrtc(drm->fd, drm->crtc->crtc_id,
 			     fb_id,
 			     0, 0,  // x,y
@@ -520,7 +523,6 @@ int32_t drm_setmode(drm_t* drm, uint32_t fb_id)
 		LOG(ERROR, "Unable to hide cursor");
 
 	drm_disable_non_primary_planes(drm);
-	drm_disable_non_main_crtcs(drm);
 	return ret;
 }
 
