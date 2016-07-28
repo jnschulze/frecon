@@ -84,6 +84,7 @@ void fb_buffer_destroy(fb_t* fb)
 	drmIoctl(fb->drm->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
 	fb->buffer_handle = 0;
 	fb->lock.map = NULL;
+	fb->lock.count = 0;
 	drm_delref(fb->drm);
 	fb->drm = NULL;
 }
@@ -241,7 +242,9 @@ uint32_t* fb_lock(fb_t* fb)
 			return NULL;
 		}
 	}
-	fb->lock.count++;
+
+	if (fb->lock.map)
+		fb->lock.count++;
 
 	return fb->lock.map;
 }
