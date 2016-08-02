@@ -155,11 +155,15 @@ int fb_buffer_init(fb_t* fb)
 	int32_t hsize_mm, vsize_mm;
 	int r;
 
-	/* some reasonable defaults */
-	fb->buffer_properties.width = 640;
-	fb->buffer_properties.height = 480;
-	fb->buffer_properties.pitch = 640 * 4;
-	fb->buffer_properties.scaling = 1;
+	/* reuse the buffer_properties if it was set before */
+	if (!fb->buffer_properties.width || !fb->buffer_properties.height ||
+		!fb->buffer_properties.pitch || !fb->buffer_properties.scaling) {
+		/* some reasonable defaults */
+		fb->buffer_properties.width = 640;
+		fb->buffer_properties.height = 480;
+		fb->buffer_properties.pitch = 640 * 4;
+		fb->buffer_properties.scaling = 1;
+	}
 
 	fb->drm = drm_addref();
 
