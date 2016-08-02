@@ -42,7 +42,6 @@ void term_write_message(terminal_t* terminal, char* message);
 fb_t* term_getfb(terminal_t* terminal);
 terminal_t* term_get_terminal(int num);
 void term_set_terminal(int num, terminal_t* terminal);
-terminal_t* term_create_term(int vt);
 terminal_t* term_create_splash_term();
 void term_destroy_splash_term();
 unsigned int term_get_max_terminals();
