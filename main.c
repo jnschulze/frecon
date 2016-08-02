@@ -215,6 +215,8 @@ int main(int argc, char* argv[])
 	splash_t* splash;
 	drm_t* drm;
 
+	fix_stdio();
+
 	/* Find out if we are going to be a daemon .*/
 	optind = 1;
 	for (;;) {

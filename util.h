@@ -38,6 +38,8 @@ void parse_filespec(char* filespec, char* filename,
 		uint32_t default_duration, int32_t default_x, int32_t default_y);
 void parse_image_option(char* optionstr, char** name, char** val);
 
+/* make sure stdio file descriptors are somewhat sane */
+void fix_stdio(void);
 
 #define ERROR                 (1)
 #define WARNING               (2)

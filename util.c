@@ -4,6 +4,7 @@
  * found in the LICENSE file.
  */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <pwd.h>
@@ -16,10 +17,45 @@
 
 #include "util.h"
 
+static int openfd(char *path, int flags, int reqfd)
+{
+	int fd = open(path, flags);
+	if (fd < 0)
+		return -1;
+
+	if (fd == reqfd)
+		return reqfd;
+
+	if (dup2(fd, reqfd) >= 0) {
+		close(fd);
+		return reqfd;
+	}
+
+	close(fd);
+	return -1;
+}
+
+static int init_daemon_stdio(void)
+{
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
+
+	if (openfd("/dev/null", O_RDONLY, STDIN_FILENO) < 0)
+		return -1;
+
+	if (openfd("/dev/kmsg", O_WRONLY, STDOUT_FILENO) < 0)
+		return -1;
+
+	if (openfd("/dev/kmsg", O_WRONLY, STDERR_FILENO) < 0)
+		return -1;
+
+	return 0;
+}
+
 void daemonize()
 {
 	pid_t pid;
-	int fd;
 
 	pid = fork();
 	if (pid == -1)
@@ -30,23 +66,20 @@ void daemonize()
 	if (setsid() == -1)
 		return;
 
-	// Re-direct stderr/stdout to the system message log
-	close(0);
-	close(1);
-	close(2);
+	init_daemon_stdio();
+}
 
-	open("/dev/kmsg", O_RDWR);
+static int is_valid_fd(int fd)
+{
+    return fcntl(fd, F_GETFL) != -1 || errno != EBADF;
+}
 
-	fd = dup(0);
-	if (fd != STDOUT_FILENO) {
-		close(fd);
-		return;
-	}
-	fd = dup(0);
-	if (fd != STDERR_FILENO) {
-		close(fd);
-		return;
-	}
+void fix_stdio(void)
+{
+	if (!is_valid_fd(STDIN_FILENO)
+	    || !is_valid_fd(STDOUT_FILENO)
+	    || !is_valid_fd(STDERR_FILENO))
+		init_daemon_stdio();
 }
 
 #ifdef __clang__
