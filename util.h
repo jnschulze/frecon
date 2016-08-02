@@ -40,6 +40,7 @@ void parse_image_option(char* optionstr, char** name, char** val);
 
 /* make sure stdio file descriptors are somewhat sane */
 void fix_stdio(void);
+bool write_string_to_file(const char *path, const char *s);
 
 #define ERROR                 (1)
 #define WARNING               (2)

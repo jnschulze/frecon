@@ -4,6 +4,7 @@
  * found in the LICENSE file.
  */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -31,7 +32,6 @@ typedef struct {
 } splash_frame_t;
 
 struct _splash_t {
-	terminal_t* terminal;
 	int num_images;
 	uint32_t clear;
 	splash_frame_t image_frames[MAX_SPLASH_IMAGES];
@@ -48,7 +48,7 @@ struct _splash_t {
 };
 
 
-splash_t* splash_init()
+splash_t* splash_init(int pts_fd)
 {
 	splash_t* splash;
 
@@ -56,7 +56,7 @@ splash_t* splash_init()
 	if (!splash)
 		return NULL;
 
-	splash->terminal = term_create_splash_term();
+	term_create_splash_term(pts_fd);
 	splash->loop_start = -1;
 	splash->loop_count = -1;
 	splash->default_duration = 25;
@@ -66,16 +66,10 @@ splash_t* splash_init()
 	return splash;
 }
 
-int splash_destroy(splash_t* splash, bool keep_term)
+int splash_destroy(splash_t* splash)
 {
-	if (splash->terminal) {
-		if (!keep_term)
-			term_close(splash->terminal);
-		splash->terminal = NULL;
-	}
 	free(splash);
-	if (!keep_term)
-		term_destroy_splash_term();
+	term_destroy_splash_term();
 	return 0;
 }
 
@@ -117,12 +111,6 @@ int splash_add_image(splash_t* splash, char* filespec)
 	return 0;
 }
 
-static void splash_clear_screen(splash_t* splash)
-{
-	term_set_background(splash->terminal, splash->clear);
-	term_clear(splash->terminal);
-}
-
 int splash_run(splash_t* splash)
 {
 	int i;
@@ -141,11 +129,18 @@ int splash_run(splash_t* splash)
 	uint32_t duration;
 	int32_t c, loop_start, loop_count;
 
+	terminal_t *terminal = term_get_terminal(TERM_SPLASH_TERMINAL);
+	if (!terminal)
+		return -ENOENT;
+
 	/*
 	 * First draw the actual splash screen
 	 */
-	splash_clear_screen(splash);
-	term_activate(splash->terminal);
+	term_set_background(terminal, splash->clear);
+	term_clear(terminal);
+	term_set_current_to(terminal);
+	term_activate(terminal);
+
 	last_show_ms = -1;
 	loop_count = (splash->loop_start >= 0 && splash->loop_start < splash->num_images) ? splash->loop_count : 1;
 	loop_start = (splash->loop_start >= 0 && splash->loop_start < splash->num_images) ? splash->loop_start : 0;
@@ -188,7 +183,7 @@ int splash_run(splash_t* splash)
 					splash->loop_offset_y);
 		}
 
-		status = term_show_image(splash->terminal, image);
+		status = term_show_image(terminal, image);
 		if (status != 0 && ec_ts < MAX_SPLASH_IMAGES) {
 			LOG(WARNING, "term_show_image failed: %d:%s.", status, strerror(status));
 			ec_ts++;
@@ -277,19 +272,21 @@ void splash_set_scale(splash_t* splash, uint32_t scale)
 		splash->scale = scale;
 }
 
-void splash_present_term_file(splash_t* splash)
-{
-	fprintf(stdout, "%s\n", term_get_ptsname(splash->terminal));
-}
-
 int splash_is_hires(splash_t* splash)
 {
-	if (splash && splash->terminal && term_getfb(splash->terminal))
-		return fb_getwidth(term_getfb(splash->terminal)) > HIRES_THRESHOLD_HR;
+	terminal_t *terminal = term_get_terminal(TERM_SPLASH_TERMINAL);
+	if (!terminal)
+		return 0;
+
+	if (term_getfb(terminal))
+		return fb_getwidth(term_getfb(terminal)) > HIRES_THRESHOLD_HR;
 	return 0;
 }
 
 void splash_redrm(splash_t* splash)
 {
-	term_redrm(splash->terminal);
+	terminal_t *terminal = term_get_terminal(TERM_SPLASH_TERMINAL);
+	if (!terminal)
+		return;
+	term_redrm(terminal);
 }

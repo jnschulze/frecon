@@ -169,3 +169,24 @@ void parse_image_option(char* optionstr, char** name, char** val)
 	}
 }
 
+bool write_string_to_file(const char *path, const char *s)
+{
+	int fd;
+	size_t towrite;
+	ssize_t written;
+
+	fd = open(path, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (!fd)
+		return false;
+
+	towrite = strlen(s);
+	written = write(fd, s, towrite);
+	close(fd);
+
+	if (written != (ssize_t)towrite) {
+		LOG(ERROR, "Failed to write string%s to %s", s, path);
+		unlink(path);
+		return false;
+	}
+	return true;
+}

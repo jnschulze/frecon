@@ -39,8 +39,15 @@ repeats forever) Looping has to be enabled using --loop-start
 	When additional terminals are enabled do not display login prompt on
 them. Can be used by scripts to display debugging information and logs on
 additional terminals.
+--num-vts=N
+	Specify number of enabled VTs. The default is 4, the maximum is 12.
 --offset=x,y
 	Specify absolute location of the splash image on screen.
+--pre-create-vts
+	Normally VTs are create on demand the the user switches to a VT.
+In some cases it may be necessary to pre-create them at startup, for instance
+to write a log or debug output for them while they are not active so it can be
+examined later. This option allows for that.
 --print-resolution
 	Print detected screen resolution and exit. Deprecated.
 --scale=N
@@ -83,3 +90,15 @@ scale is integer scaling factor applied to image size or box size
 Examples are
 echo -ne "\033]image:file=/usr/share/chromeos-assets/images_100_percent/boot_splash_frame18.png\033\\" > /dev/pts/1
 echo -ne "\033]box:color=0xFFFFFFFF;size=100,100\033\\" > /dev/pts/1
+
+Files:
+Frecon creates following files and links in /var/run/frecon directory:
+
+- /var/run/frecon/pid which contains pid for frecon daemon process (only when
+--daemon is specified on command line).
+
+- for every VT it creates, a link from /var/run/frecon/vt%u to /dev/pts/X where
+%u is terminal number from 0 to num-vts - 1 so the user can determine which
+VT uses which pts since pts number assignment is not deterministic.
+
+

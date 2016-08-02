@@ -10,13 +10,16 @@
 #include "fb.h"
 #include "image.h"
 
-#define MAX_STD_TERMINALS     (3)
-#define NUM_SPLASH_TERMINAL   (1)
-#define MAX_TERMINALS         (MAX_STD_TERMINALS + NUM_SPLASH_TERMINAL)
-#define SPLASH_TERMINAL       (MAX_TERMINALS - 1)
+#define TERM_MAX_TERMINALS    12
+#define TERM_SPLASH_TERMINAL  0
+#define TERM_FIRST_STD_VT     1
+
+extern unsigned int term_num_terminals;
 
 typedef struct _terminal_t terminal_t;
-terminal_t* term_init(bool interactive);
+
+void term_set_num_terminals(unsigned new_num);
+terminal_t* term_init(unsigned vt, int pts_fd);
 void term_close(terminal_t* terminal);
 void term_close(terminal_t* terminal);
 void term_key_event(terminal_t* terminal, uint32_t keysym, int32_t unicode);
@@ -42,14 +45,14 @@ void term_write_message(terminal_t* terminal, char* message);
 fb_t* term_getfb(terminal_t* terminal);
 terminal_t* term_get_terminal(int num);
 void term_set_terminal(int num, terminal_t* terminal);
-terminal_t* term_create_splash_term();
-void term_destroy_splash_term();
-unsigned int term_get_max_terminals();
+int term_create_splash_term(int pts_fd);
+void term_destroy_splash_term(void);
 void term_set_current(uint32_t t);
 uint32_t term_get_current(void);
 terminal_t *term_get_current_terminal(void);
 void term_set_current_terminal(terminal_t* terminal);
 void term_set_current_to(terminal_t* terminal);
+int term_switch_to(unsigned int vt);
 void term_monitor_hotplug(void);
 void term_redrm(terminal_t* terminal);
 void term_clear(terminal_t* terminal);

@@ -4,6 +4,7 @@
  * found in the LICENSE file.
  */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <libtsm.h>
@@ -37,8 +38,10 @@
 #define  FLAG_LOOP_START                   'l'
 #define  FLAG_LOOP_INTERVAL                'L'
 #define  FLAG_LOOP_OFFSET                  'o'
+#define  FLAG_NUM_VTS                      'N'
 #define  FLAG_NO_LOGIN                     'n'
 #define  FLAG_OFFSET                       'O'
+#define  FLAG_PRE_CREATE_VTS               'P'
 #define  FLAG_PRINT_RESOLUTION             'p'
 #define  FLAG_SCALE                        'S'
 #define  FLAG_SPLASH_ONLY                  's'
@@ -58,9 +61,11 @@ static struct option command_options[] = {
 	{ "loop-start", required_argument, NULL, FLAG_LOOP_START },
 	{ "loop-interval", required_argument, NULL, FLAG_LOOP_INTERVAL },
 	{ "loop-offset", required_argument, NULL, FLAG_LOOP_OFFSET },
+	{ "num-vts", required_argument, NULL, FLAG_NUM_VTS },
 	{ "no-login", no_argument, NULL, FLAG_NO_LOGIN },
 	{ "offset", required_argument, NULL, FLAG_OFFSET },
 	{ "print-resolution", no_argument, NULL, FLAG_PRINT_RESOLUTION },
+	{ "pre-create-vts", no_argument, NULL, FLAG_PRE_CREATE_VTS },
 	{ "scale", required_argument, NULL, FLAG_SCALE },
 	{ "splash-only", no_argument, NULL, FLAG_SPLASH_ONLY },
 	{ NULL, 0, NULL, 0 }
@@ -101,11 +106,10 @@ int main_process_events(uint32_t usec)
 	input_add_fds(&read_set, &exception_set, &maxfd);
 	dev_add_fds(&read_set, &exception_set, &maxfd);
 
-	for (int i = 0; i < MAX_TERMINALS; i++) {
-		if (term_is_valid(term_get_terminal(i))) {
-			terminal_t* current_term = term_get_terminal(i);
+	for (unsigned i = 0; i < term_num_terminals; i++) {
+		terminal_t* current_term = term_get_terminal(i);
+		if (term_is_valid(current_term))
 			term_add_fds(current_term, &read_set, &exception_set, &maxfd);
-		}
 	}
 
 	if (usec) {
@@ -127,25 +131,23 @@ int main_process_events(uint32_t usec)
 	dev_dispatch_io(&read_set, &exception_set);
 	input_dispatch_io(&read_set, &exception_set);
 
-	for (int i = 0; i < MAX_TERMINALS; i++) {
-		if (term_is_valid(term_get_terminal(i))) {
-			terminal_t* current_term = term_get_terminal(i);
+	for (unsigned i = 0; i < term_num_terminals; i++) {
+		terminal_t* current_term = term_get_terminal(i);
+		if (term_is_valid(current_term))
 			term_dispatch_io(current_term, &read_set);
-		}
 	}
 
+	/* Could have changed in input dispatch. */
+	terminal = term_get_current_terminal();
+
+	/* Restart terminal on which child has exited. We don't want possible garbage settings from previous session to remain. */
 	if (term_is_valid(terminal)) {
 		if (term_is_child_done(terminal)) {
-			if (terminal == term_get_terminal(SPLASH_TERMINAL) && !command_flags.enable_vt1) {
-				/*
-				 * Note: reference is not lost because it is still referenced
-				 * by the splash_t structure which will ultimately destroy
-				 * it, once it's safe to do so.
-				 */
-				term_set_terminal(SPLASH_TERMINAL, NULL);
-				return -1;
+			if (terminal == term_get_terminal(TERM_SPLASH_TERMINAL) && !command_flags.enable_vt1) {
+				/* Let the old term be, splash_destroy will clean it up. */
+				return 0;
 			}
-			term_set_current_terminal(term_init(true));
+			term_set_current_terminal(term_init(term_get_current(), -1));
 			new_terminal = term_get_current_terminal();
 			if (!term_is_valid(new_terminal)) {
 				return -1;
@@ -207,7 +209,29 @@ static void main_on_login_prompt_visible(void* ptr)
 		LOG(INFO, "Chrome started, splash screen is not needed anymore.");
 		if (command_flags.enable_vt1)
 			LOG(WARNING, "VT1 enabled and Chrome is active!");
-		splash_destroy((splash_t*)ptr, false);
+		splash_destroy((splash_t*)ptr);
+	}
+}
+
+static void legacy_print_resolution(int argc, char* argv[])
+{
+	int c;
+
+	optind = 1;
+	for (;;) {
+		c = getopt_long(argc, argv, "", command_options, NULL);
+		if (c == -1) {
+			break;
+		} else if (c == FLAG_PRINT_RESOLUTION) {
+			drm_t *drm = drm_scan();
+			if (!drm)
+				exit(EXIT_FAILURE);
+
+			printf("%d %d", drm_gethres(drm),
+			       drm_getvres(drm));
+			drm_delref(drm);
+			exit(EXIT_SUCCESS);
+		}
 	}
 }
 
@@ -215,11 +239,15 @@ int main(int argc, char* argv[])
 {
 	int ret;
 	int c;
+	int pts_fd;
 	int32_t x, y;
 	splash_t* splash;
 	drm_t* drm;
 
+	legacy_print_resolution(argc, argv);
+
 	fix_stdio();
+	pts_fd =  posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
 
 	optind = 1;
 	for (;;) {
@@ -249,39 +277,31 @@ int main(int argc, char* argv[])
 				command_flags.no_login = true;
 				break;
 
+			case FLAG_NUM_VTS:
+				term_set_num_terminals(strtoul(optarg, NULL, 0));
+				break;
+
+			case FLAG_PRE_CREATE_VTS:
+				command_flags.pre_create_vts = true;
+				break;
+
 			case FLAG_SPLASH_ONLY:
 				command_flags.splash_only = true;
 				break;
 		}
 	}
 
-	/* Handle resolution special before splash init. */
-	optind = 1;
-	for (;;) {
-		c = getopt_long(argc, argv, "", command_options, NULL);
-		if (c == -1) {
-			break;
-		} else if (c == FLAG_PRINT_RESOLUTION) {
-			drm_t *drm = drm_scan();
-			if (!drm)
-				return EXIT_FAILURE;
-
-			printf("%d %d", drm_gethres(drm),
-			       drm_getvres(drm));
-			drm_delref(drm);
-			return EXIT_SUCCESS;
-		}
-	}
-
-	splash = splash_init();
-	if (splash == NULL) {
-		LOG(ERROR, "Splash init failed.");
-		return EXIT_FAILURE;
-	}
-
 	if (command_flags.daemon) {
-		splash_present_term_file(splash);
+		int status;
+		fprintf(stdout, "%s\n", ptsname(pts_fd));
 		daemonize();
+		status = mkdir(FRECON_RUN_DIR, S_IRWXU);
+		if (status == 0 || (status < 0 && errno == EEXIST)) {
+			char pids[32];
+
+			sprintf(pids, "%u", getpid());
+			write_string_to_file(FRECON_PID_FILE, pids);
+		}
 	}
 
 	ret = input_init();
@@ -297,8 +317,12 @@ int main(int argc, char* argv[])
 	}
 
 	drm_set(drm = drm_scan());
-	/* Update DRM object in splash term and set video mode. */
-	splash_redrm(splash);
+
+	splash = splash_init(pts_fd);
+	if (splash == NULL) {
+		LOG(ERROR, "Splash init failed.");
+		return EXIT_FAILURE;
+	}
 
 	/* These flags can be only processed after splash object has been created. */
 	optind = 1;
@@ -367,7 +391,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (command_flags.splash_only) {
-		splash_destroy(splash, false);
+		splash_destroy(splash);
 		goto main_done;
 	}
 
@@ -386,7 +410,7 @@ int main(int argc, char* argv[])
 	dbus_set_login_prompt_visible_callback(main_on_login_prompt_visible,
 					       (void*)splash);
 #if !DBUS
-	splash_destroy(splash, command_flags.enable_vt1);
+	splash_destroy(splash);
 #endif
 	/*
 	 * Ask DBUS to notify us when suspend has finished so monitors can be reprobed
@@ -394,19 +418,27 @@ int main(int argc, char* argv[])
 	 */
 	dbus_set_suspend_done_callback(term_suspend_done, NULL);
 
+	if (command_flags.pre_create_vts && command_flags.enable_vts) {
+		for (unsigned vt = command_flags.enable_vt1 ? TERM_SPLASH_TERMINAL : 1; vt < term_num_terminals; vt++) {
+			terminal_t *terminal = term_get_terminal(vt);
+			if (!terminal) {
+				terminal = term_init(vt, -1);
+				term_set_terminal(vt, terminal);
+			}
+		}
+	}
+
 	if (command_flags.daemon) {
 		if (command_flags.enable_vts)
 			set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */
-		if (!command_flags.enable_vt1)
+		if (command_flags.enable_vt1)
+			term_switch_to(TERM_SPLASH_TERMINAL);
+		else
 			term_background();
 	} else {
 		/* Create and switch to first term in interactve mode. */
-		terminal_t* terminal;
 		set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */
-		term_foreground();
-		term_set_current_terminal(term_init(true));
-		terminal = term_get_current_terminal();
-		term_activate(terminal);
+		term_switch_to(command_flags.enable_vt1 ? TERM_SPLASH_TERMINAL : 1);
 	}
 
 	ret = main_loop();
@@ -416,6 +448,8 @@ main_done:
 	dev_close();
 	dbus_destroy();
 	drm_close();
+	if (command_flags.daemon)
+		unlink(FRECON_PID_FILE);
 
 	return ret;
 }

@@ -183,36 +183,11 @@ static int input_special_key(struct input_key_event* ev)
 		if (is_shift_pressed(&input.kbd_state))
 			return 1;
 
-		if (ev->code == KEY_F1) {
-			if (term_is_active(terminal)) {
-				term_deactivate(terminal);
-				if (term_get_terminal(SPLASH_TERMINAL) != NULL) {
-					term_activate(term_get_terminal(SPLASH_TERMINAL));
-				} else {
-					term_background();
-				}
-			}
-		} else if ((ev->code >= KEY_F2) && (ev->code < KEY_F2 + MAX_STD_TERMINALS)) {
-			term_foreground();
-			if (term_is_active(terminal))
-				term_deactivate(terminal);
-			term_set_current(ev->code - KEY_F2);
-			terminal = term_get_current_terminal();
-			if (terminal == NULL) {
-				term_set_current_terminal(term_init(true));
-				terminal =
-					term_get_current_terminal();
-				term_activate(terminal);
-				if (!term_is_valid(terminal)) {
-					LOG(ERROR, "Term init failed");
-					return 1;
-				}
-			}
-			term_activate(term_get_current_terminal());
+		if ((ev->code >= KEY_F1) && (ev->code < KEY_F1 + term_num_terminals)) {
+			term_switch_to(ev->code - KEY_F1);
 		}
 
 		return 1;
-
 	}
 
 	return 0;

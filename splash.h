@@ -10,11 +10,10 @@
 typedef struct _splash_t splash_t;
 
 int splash_add_image(splash_t*, char* filespec);
-int splash_destroy(splash_t*, bool);
-splash_t* splash_init();
+int splash_destroy(splash_t*);
+splash_t* splash_init(int pts_fd);
 int splash_is_hires(splash_t* splash);
 int splash_num_images(splash_t* splash);
-void splash_present_term_file(splash_t* splash);
 int splash_run(splash_t*);
 int splash_set_clear(splash_t* splash, uint32_t clear_color);
 void splash_set_default_duration(splash_t* splash, uint32_t duration);

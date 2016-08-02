@@ -7,6 +7,9 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#define FRECON_RUN_DIR "/var/run/frecon"
+#define FRECON_PID_FILE FRECON_RUN_DIR "/pid"
+
 int main_process_events(uint32_t usec);
 bool set_drm_master_relax(void);
 
@@ -17,6 +20,7 @@ typedef struct {
 	bool    splash_only;
 	bool    enable_gfx;
 	bool    no_login;
+	bool    pre_create_vts;
 } commandflags_t;
 
 extern commandflags_t command_flags;

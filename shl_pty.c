@@ -379,7 +379,8 @@ static int pty_init_child(int fd)
 
 pid_t
 shl_pty_open(struct shl_pty ** out, shl_pty_input_cb cb, void *data,
-	     unsigned short term_width, unsigned short term_height)
+	     unsigned short term_width, unsigned short term_height,
+	     int pts_fd)
 {
 	struct shl_pty *pty;
 	pid_t pid;
@@ -390,7 +391,10 @@ shl_pty_open(struct shl_pty ** out, shl_pty_input_cb cb, void *data,
 	if (!pty)
 		return -ENOMEM;
 
-	fd = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
+	if (pts_fd >= 0)
+		fd = pts_fd;
+	else
+		fd = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
 	if (fd < 0) {
 		free(pty);
 		return -errno;
