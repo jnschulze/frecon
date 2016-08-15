@@ -14,6 +14,8 @@
 #define TERM_SPLASH_TERMINAL  0
 #define TERM_FIRST_STD_VT     1
 
+#define FRECON_VT_PATH FRECON_RUN_DIR "/vt%u"
+
 extern unsigned int term_num_terminals;
 
 typedef struct _terminal_t terminal_t;

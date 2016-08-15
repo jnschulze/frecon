@@ -25,8 +25,6 @@
 #include "term.h"
 #include "util.h"
 
-#define FRECON_VT_PATH FRECON_RUN_DIR "/vt%u"
-
 unsigned int term_num_terminals = 4;
 static terminal_t* terminals[TERM_MAX_TERMINALS];
 static uint32_t current_terminal = 0;
@@ -511,6 +509,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 	if (status == 0 || (status < 0 && errno == EEXIST)) {
 		char path[32];
 		snprintf(path, sizeof(path), FRECON_VT_PATH, vt);
+		unlink(path); /* In case it already exists. Ignore return codes. */
 		if (symlink(ptsname(shl_pty_get_fd(new_terminal->term->pty)), path) < 0)
 			LOG(ERROR, "Failed to symlink pts name %s to %s, %d:%s",
 			    path,

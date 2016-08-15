@@ -293,6 +293,7 @@ int main(int argc, char* argv[])
 
 	if (command_flags.daemon) {
 		int status;
+		unsigned vt;
 		fprintf(stdout, "%s\n", ptsname(pts_fd));
 		daemonize();
 		status = mkdir(FRECON_RUN_DIR, S_IRWXU);
@@ -301,6 +302,13 @@ int main(int argc, char* argv[])
 
 			sprintf(pids, "%u", getpid());
 			write_string_to_file(FRECON_PID_FILE, pids);
+		}
+
+		/* Remove all stale VT links. */
+		for (vt = 0; vt < TERM_MAX_TERMINALS; vt++) {
+			char path[32];
+			snprintf(path, sizeof(path), FRECON_VT_PATH, vt);
+			unlink(path);
 		}
 	}
 
