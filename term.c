@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include "dbus.h"
 #include "fb.h"
@@ -61,12 +62,6 @@ static char* interactive_cmd_line[] = {
 	NULL
 };
 
-
-static char* noninteractive_cmd_line[] = {
-	"/bin/cat",
-	NULL
-};
-
 static bool in_background = false;
 static bool hotplug_occured = false;
 
@@ -75,8 +70,13 @@ static void __attribute__ ((noreturn)) term_run_child(terminal_t* terminal)
 {
 	/* XXX figure out how to fix "top" for xterm-256color */
 	setenv("TERM", "xterm", 1);
-	execve(terminal->exec[0], terminal->exec, environ);
-	exit(1);
+	if (terminal->exec) {
+		execve(terminal->exec[0], terminal->exec, environ);
+		exit(1);
+	} else {
+		while (1)
+			sleep(1000000);
+	}
 }
 
 static int term_draw_cell(struct tsm_screen* screen, uint32_t id,
@@ -468,7 +468,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 	if (interactive)
 		new_terminal->exec = interactive_cmd_line;
 	else
-		new_terminal->exec = noninteractive_cmd_line;
+		new_terminal->exec = NULL;
 
 	status = tsm_screen_new(&new_terminal->term->screen,
 			log_tsm, new_terminal->term);
