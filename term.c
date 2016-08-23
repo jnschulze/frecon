@@ -833,7 +833,6 @@ int term_switch_to(unsigned int vt)
 		}
 	} else {
 		term_activate(terminal);
-		LOG(INFO, "Activated existing terminal %p on VT%u", terminal, vt);
 	}
 
 	return vt;
