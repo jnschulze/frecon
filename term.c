@@ -453,6 +453,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 	new_terminal->fb = fb_init();
 
 	if (!new_terminal->fb) {
+		LOG(ERROR, "Failed to create fb on VT%u.", vt);
 		term_close(new_terminal);
 		return NULL;
 	}
@@ -471,6 +472,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 	status = tsm_screen_new(&new_terminal->term->screen,
 			log_tsm, new_terminal->term);
 	if (status < 0) {
+		LOG(ERROR, "Failed to create new screen on VT%u.", vt);
 		term_close(new_terminal);
 		return NULL;
 	}
@@ -481,6 +483,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 			term_write_cb, new_terminal->term, log_tsm, new_terminal->term);
 
 	if (status < 0) {
+		LOG(ERROR, "Failed to create new VT%u.", vt);
 		term_close(new_terminal);
 		return NULL;
 	}
@@ -490,6 +493,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 
 	new_terminal->term->pty_bridge = shl_pty_bridge_new();
 	if (new_terminal->term->pty_bridge < 0) {
+		LOG(ERROR, "Failed to create pty bridge on VT%u.", vt);
 		term_close(new_terminal);
 		return NULL;
 	}
@@ -498,6 +502,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 			term_read_cb, new_terminal, 1, 1, pts_fd);
 
 	if (status < 0) {
+		LOG(ERROR, "Failed to open pty on VT%u.", vt);
 		term_close(new_terminal);
 		return NULL;
 	} else if (status == 0) {
@@ -519,6 +524,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 
 	status = shl_pty_bridge_add(new_terminal->term->pty_bridge, new_terminal->term->pty);
 	if (status) {
+		LOG(ERROR, "Failed to add pty bridge on VT%u.", vt);
 		term_close(new_terminal);
 		return NULL;
 	}
@@ -528,6 +534,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 	status = term_resize(new_terminal);
 
 	if (status < 0) {
+		LOG(ERROR, "Failed to resize VT%u.", vt);
 		term_close(new_terminal);
 		return NULL;
 	}
@@ -797,9 +804,11 @@ int term_switch_to(unsigned int vt)
 	terminal_t *terminal;
 	if (vt == term_get_current()) {
 		terminal = term_get_current_terminal();
-		if (!term_is_active(terminal))
-			term_activate(terminal);
-		return vt;
+		if (term_is_valid(terminal)) {
+			if (!term_is_active(terminal))
+				term_activate(terminal);
+			return vt;
+		}
 	}
 
 	if (vt >= term_num_terminals)
@@ -826,11 +835,11 @@ int term_switch_to(unsigned int vt)
 		/* No terminal where we are switching to, create new one. */
 		term_set_current_terminal(term_init(vt, -1));
 		terminal = term_get_current_terminal();
-		term_activate(terminal);
 		if (!term_is_valid(terminal)) {
-			LOG(ERROR, "Term init failed");
+			LOG(ERROR, "Term init failed VT%u.", vt);
 			return -1;
 		}
+		term_activate(terminal);
 	} else {
 		term_activate(terminal);
 	}
