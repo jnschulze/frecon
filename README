@@ -3,8 +3,22 @@ frecon: the Freon Console
 This is a terminal emulator that replaces the kernel Virtual Terminal (VT)
 console.  It uses the Kernel Mode Setting (KMS) support in the kernel.  It
 is similar to the kmscon project:
-	http://www.freedesktop.org/wiki/Software/kmscon
+	https://www.freedesktop.org/wiki/Software/kmscon
 
+A new project was created (rather than re-using kmscon) because:
+* We show a boot splash animation during early boot.
+* Dynamic VT initialization.
+* Integration with CrOS dev mode checks.
+* A D-Bus IPC protocol for Chrome to control startup/shutdown.
+* VT switching negotiation with Chrome.
+* We don't need all the seat logic that kmscon includes.
+
+However, it's not as bad as it sounds!  We haven't re-implemented our own
+terminal emulator -- we use the same library that kmscon does:
+[libtsm](https://www.freedesktop.org/wiki/Software/libtsm/).  That's the
+much more tricky part too.
+
+For even more details, check out the design doc in this repo.
 
 Command line options:
 
