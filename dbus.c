@@ -7,6 +7,7 @@
 #if DBUS
 #include <dbus/dbus.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "dbus.h"
 #include "dbus_interface.h"

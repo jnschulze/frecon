@@ -4,9 +4,9 @@
  * found in the LICENSE file.
  */
 
-
 #include <errno.h>
 #include <libudev.h>
+#include <string.h>
 
 #include "dev.h"
 #include "input.h"
