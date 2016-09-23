@@ -38,8 +38,6 @@ after finishing splash animation.
 * `--frame-interval=N`
 	Specify default time (in milliseconds) between frames of splash screen
 animation.
-* `--gamma=/path/to/gamma/table`
-	Specify gamma table to apply. (unimplemented)
 * `--loop-start=N`
 	Specify frame to start splash animation loop. This option also enables
 the animation loop.

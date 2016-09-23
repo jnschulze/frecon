@@ -32,7 +32,6 @@
 #define  FLAG_ENABLE_VT1                   '1'
 #define  FLAG_ENABLE_VTS                   'e'
 #define  FLAG_FRAME_INTERVAL               'f'
-#define  FLAG_GAMMA                        'g'
 #define  FLAG_HELP                         'h'
 #define  FLAG_IMAGE                        'i'
 #define  FLAG_IMAGE_HIRES                  'I'
@@ -56,7 +55,6 @@ static const struct option command_options[] = {
 	{ "enable-vt1", no_argument, NULL, FLAG_ENABLE_VT1 },
 	{ "enable-vts", no_argument, NULL, FLAG_ENABLE_VTS },
 	{ "frame-interval", required_argument, NULL, FLAG_FRAME_INTERVAL },
-	{ "gamma", required_argument, NULL, FLAG_GAMMA },
 	{ "help", no_argument, NULL, FLAG_HELP },
 	{ "image", required_argument, NULL, FLAG_IMAGE },
 	{ "image-hires", required_argument, NULL, FLAG_IMAGE_HIRES },
@@ -81,7 +79,6 @@ static const char * const command_help[] = {
 	"Enable switching to VT1 and keep a terminal on it.",
 	"Enable additional terminals beyond VT1.",
 	"Default time (in msecs) between splash animation frames.",
-	"The gamma table to apply. (unimplemented)",
 	"This help screen!",
 	"Image (low res) to use for splash animation.",
 	"Image (hi res) to use for splash animation.",
