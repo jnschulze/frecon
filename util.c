@@ -13,9 +13,13 @@
 #include <string.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "util.h"
+
+static int daemon_pipe[2] = { -1, -1 };
 
 static int openfd(char *path, int flags, int reqfd)
 {
@@ -53,20 +57,49 @@ static int init_daemon_stdio(void)
 	return 0;
 }
 
-void daemonize()
+void daemonize(bool wait_child)
 {
 	pid_t pid;
+
+	if (wait_child)
+		if (pipe(daemon_pipe) < 0)
+			exit(EXIT_FAILURE);
 
 	pid = fork();
 	if (pid == -1)
 		return;
-	else if (pid != 0)
+	else if (pid != 0) {
+		if (wait_child) {
+			char code = EXIT_FAILURE;
+			close(daemon_pipe[1]);
+			if (read(daemon_pipe[0], &code, sizeof(code)) < 0) {
+				int c;
+				/* Child has died? */
+				if (errno == EPIPE)
+					if (waitpid(pid, &c, 0) >= 0)
+						exit(c); /* Propagate child exit code. */
+				/* Just report failure. */
+				exit(EXIT_FAILURE);
+			}
+			exit(code);
+		}
 		exit(EXIT_SUCCESS);
+	}
 
+	if (wait_child)
+		close(daemon_pipe[0]);
 	if (setsid() == -1)
 		return;
 
 	init_daemon_stdio();
+}
+
+void daemon_exit_code(char code)
+{
+	if (write(daemon_pipe[1], &code, sizeof(code)) != sizeof(code)) {
+		LOG(ERROR, "failed to report exit code back to daemon parent");
+	}
+	close(daemon_pipe[1]);
 }
 
 static int is_valid_fd(int fd)

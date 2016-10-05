@@ -60,7 +60,9 @@ additional terminals.
 	Normally VTs are create on demand the the user switches to a VT.
 In some cases it may be necessary to pre-create them at startup, for instance
 to write a log or debug output for them while they are not active so it can be
-examined later. This option allows for that.
+examined later. This option allows for that. This option also ensures daemon
+parent waits for daemon child to finish initalization so consoles are created
+by the time daemon parent exits.
 * `--print-resolution`
 	Print detected screen resolution and exit. Deprecated.
 * `--scale=N`

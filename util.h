@@ -31,7 +31,8 @@ inline int64_t get_monotonic_time_ms() {
 }
 
 void LOG(int severity, const char* fmt, ...);
-void daemonize();
+void daemonize(bool wait_child);
+void daemon_exit_code(char code);
 void parse_location(char* loc_str, int* x, int* y);
 void parse_filespec(char* filespec, char* filename,
 		int32_t* offset_x, int32_t* offset_y, uint32_t* duration,
