@@ -111,11 +111,11 @@ echo -ne "\033]box:color=0xFFFFFFFF;size=100,100\033\\" > /dev/pts/1
 
 ## Files
 
-Frecon creates the following files and links in `/var/run/frecon` directory:
+Frecon creates the following files and links in `/run/frecon` directory:
 
-- `/var/run/frecon/pid` which contains pid for frecon daemon process (only when
+- `/run/frecon/pid` which contains pid for frecon daemon process (only when
   `--daemon` is specified on command line).
 
-- for every VT it creates, a link from `/var/run/frecon/vt%u` to `/dev/pts/X`
+- for every VT it creates, a link from `/run/frecon/vt%u` to `/dev/pts/X`
   where `%u` is terminal number from 0 to num-vts - 1 so the user can determine
   which VT uses which pts since pts number assignment is not deterministic.

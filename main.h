@@ -7,7 +7,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define FRECON_RUN_DIR "/var/run/frecon"
+#define FRECON_RUN_DIR "/run/frecon"
 #define FRECON_PID_FILE FRECON_RUN_DIR "/pid"
 
 int main_process_events(uint32_t usec);
