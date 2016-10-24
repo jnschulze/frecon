@@ -401,8 +401,9 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	if (command_flags.pre_create_vts && command_flags.enable_vts) {
-		for (unsigned vt = command_flags.enable_vt1 ? TERM_SPLASH_TERMINAL : 1; vt < term_num_terminals; vt++) {
+	if (command_flags.pre_create_vts) {
+		for (unsigned vt = command_flags.enable_vt1 ? TERM_SPLASH_TERMINAL : 1;
+		     vt < (command_flags.enable_vts ? term_num_terminals : 1); vt++) {
 			terminal_t *terminal = term_get_terminal(vt);
 			if (!terminal) {
 				terminal = term_init(vt, -1);
