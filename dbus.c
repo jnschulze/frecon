@@ -231,6 +231,42 @@ static bool dbus_method_call0(const char* service_name,
 	return true;
 }
 
+static bool dbus_method_call0_bool(const char* service_name,
+				   const char* service_path,
+				   const char* service_interface,
+				   const char* method)
+{
+	DBusMessage* msg = NULL;
+	DBusMessage* reply = NULL;
+	int res = false;
+
+	if (!dbus) {
+		LOG(ERROR, "dbus not initialized");
+		return false;
+	}
+
+	msg = dbus_message_new_method_call(service_name,
+			service_path, service_interface, method);
+
+	if (!msg)
+		return false;
+
+	reply = dbus_connection_send_with_reply_and_block(dbus->conn,
+				msg, DBUS_DEFAULT_DELAY, NULL);
+	if (!reply) {
+		dbus_message_unref(msg);
+		return false;
+	}
+
+	dbus_message_get_args(reply, NULL, DBUS_TYPE_BOOLEAN, &res, DBUS_TYPE_INVALID);
+
+	dbus_connection_flush(dbus->conn);
+	dbus_message_unref(msg);
+	dbus_message_unref(reply);
+
+	return (bool)res;
+}
+
 static bool dbus_method_call1(const char* service_name,
 			      const char* service_path,
 			      const char* service_interface,
@@ -346,14 +382,14 @@ void dbus_report_user_activity(int activity_type)
 /*
  * tell Chrome to take ownership of the display (DRM master)
  */
-void dbus_take_display_ownership(void)
+bool dbus_take_display_ownership(void)
 {
 	if (!dbus)
-		return;
-	(void)dbus_method_call0(kLibCrosServiceName,
-				kLibCrosServicePath,
-				kLibCrosServiceInterface,
-				kTakeDisplayOwnership);
+		return true;
+	return dbus_method_call0_bool(kLibCrosServiceName,
+				      kLibCrosServicePath,
+				      kLibCrosServiceInterface,
+				      kTakeDisplayOwnership);
 }
 
 /*
@@ -363,10 +399,10 @@ bool dbus_release_display_ownership(void)
 {
 	if (!dbus)
 		return true;
-	return dbus_method_call0(kLibCrosServiceName,
-				 kLibCrosServicePath,
-				 kLibCrosServiceInterface,
-				 kReleaseDisplayOwnership);
+	return dbus_method_call0_bool(kLibCrosServiceName,
+				      kLibCrosServicePath,
+				      kLibCrosServiceInterface,
+				      kReleaseDisplayOwnership);
 }
 
 void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
@@ -427,8 +463,9 @@ void dbus_report_user_activity(int activity_type)
 {
 }
 
-void dbus_take_display_ownership(void)
+bool dbus_take_display_ownership(void)
 {
+	return true;
 }
 
 bool dbus_release_display_ownership(void)

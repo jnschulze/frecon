@@ -18,7 +18,7 @@ void dbus_destroy(void);
 void dbus_add_fds(fd_set* read_set, fd_set* exception_set, int *maxfd);
 void dbus_dispatch_io(void);
 void dbus_report_user_activity(int activity_type);
-void dbus_take_display_ownership(void);
+bool dbus_take_display_ownership(void);
 bool dbus_release_display_ownership(void);
 bool dbus_is_initialized(void);
 void dbus_set_login_prompt_visible_callback(void (*callback)(void*),

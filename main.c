@@ -511,14 +511,14 @@ int main(int argc, char* argv[])
 
 	if (command_flags.daemon) {
 		if (command_flags.enable_vts)
-			set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */
+			set_drm_master_relax();
 		if (command_flags.enable_vt1)
 			term_switch_to(TERM_SPLASH_TERMINAL);
 		else
 			term_background();
 	} else {
 		/* Create and switch to first term in interactve mode. */
-		set_drm_master_relax(); /* TODO(dbehr) Remove when Chrome is fixed to actually release master. */
+		set_drm_master_relax();
 		term_switch_to(command_flags.enable_vt1 ? TERM_SPLASH_TERMINAL : 1);
 	}
 
