@@ -210,9 +210,6 @@ img_error:
 		image_destroy(splash->image_frames[i].image);
 	}
 
-	if (!command_flags.enable_vt1)
-		term_set_current_to(NULL);
-
 	return status;
 }
 

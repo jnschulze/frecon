@@ -386,12 +386,15 @@ static void log_tsm(void* data, const char* file, int line, const char* fn,
 	fprintf(stderr, "\n");
 }
 
-static int term_resize(terminal_t* term)
+static int term_resize(terminal_t* term, int scaling)
 {
 	uint32_t char_width, char_height;
 	int status;
 
-	font_init(fb_getscaling(term->fb));
+	if (!scaling)
+		scaling = fb_getscaling(term->fb);
+
+	font_init(scaling);
 	font_get_size(&char_width, &char_height);
 
 	term->term->char_x = fb_getwidth(term->fb) / char_width;
@@ -531,7 +534,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 
 	new_terminal->term->pid = shl_pty_get_child(new_terminal->term->pty);
 
-	status = term_resize(new_terminal);
+	status = term_resize(new_terminal, 0);
 
 	if (status < 0) {
 		LOG(ERROR, "Failed to resize VT%u.", vt);
@@ -785,6 +788,8 @@ void term_set_current_terminal(terminal_t* terminal)
 void term_set_current_to(terminal_t* terminal)
 {
 	if (!terminal) {
+		if (terminals[current_terminal])
+			term_close(terminals[current_terminal]);
 		terminals[current_terminal] = NULL;
 		current_terminal = 0;
 		return;
@@ -874,7 +879,7 @@ void term_monitor_hotplug(void)
 		if (!terminals[t]->fb)
 			continue;
 		fb_buffer_init(terminals[t]->fb);
-		term_resize(terminals[t]);
+		term_resize(terminals[t], 0);
 		if (current_terminal == t && terminals[t]->active)
 			fb_setmode(terminals[t]->fb);
 		terminals[t]->term->age = 0;
@@ -887,7 +892,7 @@ void term_redrm(terminal_t* terminal)
 	fb_buffer_destroy(terminal->fb);
 	font_free();
 	fb_buffer_init(terminal->fb);
-	term_resize(terminal);
+	term_resize(terminal, 0);
 	terminal->term->age = 0;
 	term_redraw(terminal);
 }
@@ -896,6 +901,31 @@ void term_clear(terminal_t* terminal)
 {
 	tsm_screen_erase_screen(terminal->term->screen, false);
 	term_redraw(terminal);
+}
+
+void term_zoom(bool zoom_in)
+{
+	int scaling = font_get_scaling();
+	if (zoom_in && scaling < 4)
+		scaling++;
+	else if (!zoom_in && scaling > 1)
+		scaling--;
+	else
+		return;
+
+	unsigned int t;
+	for (t = 0; t < term_num_terminals; t++) {
+		if (terminals[t])
+			font_free();
+	}
+	for (t = 0; t < term_num_terminals; t++) {
+		terminal_t* term = terminals[t];
+		if (term) {
+			term_resize(term, scaling);
+			term->term->age = 0;
+			term_redraw(term);
+		}
+	}
 }
 
 void term_background(void)

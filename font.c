@@ -12,7 +12,7 @@
 
 #define UNICODE_REPLACEMENT_CHARACTER_CODE_POINT 0xFFFD
 
-static int font_scaling = 1;
+static int font_scaling = 0;
 static int glyph_size = GLYPH_BYTES_PER_ROW * GLYPH_HEIGHT;
 static uint8_t* prescaled_glyphs = NULL;
 static int font_ref = 0;
@@ -175,6 +175,12 @@ void font_get_size(uint32_t* char_width, uint32_t* char_height)
 {
 	*char_width = GLYPH_WIDTH * font_scaling;
 	*char_height = GLYPH_HEIGHT * font_scaling;
+}
+
+
+int font_get_scaling()
+{
+	return font_scaling;
 }
 
 void font_fillchar(uint32_t* dst_pointer, int dst_char_x, int dst_char_y,

@@ -58,6 +58,7 @@ int term_switch_to(unsigned int vt);
 void term_monitor_hotplug(void);
 void term_redrm(terminal_t* terminal);
 void term_clear(terminal_t* terminal);
+void term_zoom(bool zoom_in);
 void term_background(void);
 void term_foreground(void);
 void term_suspend_done(void*);

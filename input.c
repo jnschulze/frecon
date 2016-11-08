@@ -147,6 +147,19 @@ static int input_special_key(struct input_key_event* ev)
 			}
 		}
 
+		if (!is_alt_pressed(&input.kbd_state) &&
+		    is_control_pressed(&input.kbd_state) &&
+		    is_shift_pressed(&input.kbd_state) && ev->value) {
+			switch (ev->code) {
+			case KEY_MINUS:
+				term_zoom(false);
+				return 1;
+			case KEY_EQUAL:
+				term_zoom(true);
+				return 1;
+			}
+		}
+
 		if (!(input.kbd_state.search_state ||
 		     is_alt_pressed(&input.kbd_state) ||
 		     is_control_pressed(&input.kbd_state)) &&
