@@ -378,6 +378,8 @@ try_open_again:
 		if (drm_score(drm) > drm_score(best_drm)) {
 			drm_fini(best_drm);
 			best_drm = drm;
+		} else {
+			drm_fini(drm);
 		}
 	}
 
