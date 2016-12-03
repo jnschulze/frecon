@@ -255,17 +255,14 @@ bool set_drm_master_relax(void)
 	return true;
 }
 
-static void main_on_login_prompt_visible(void* ptr)
+static void main_on_login_prompt_visible(void)
 {
 	if (command_flags.daemon && !command_flags.enable_vts) {
 		LOG(INFO, "Chrome started, our work is done, exiting.");
 		exit(EXIT_SUCCESS);
-	} else
-	if (ptr) {
-		LOG(INFO, "Chrome started, splash screen is not needed anymore.");
+	} else {
 		if (command_flags.enable_vt1)
 			LOG(WARNING, "VT1 enabled and Chrome is active!");
-		splash_destroy((splash_t*)ptr);
 	}
 }
 
@@ -481,10 +478,10 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if (command_flags.splash_only) {
-		splash_destroy(splash);
+	splash_destroy(splash);
+
+	if (command_flags.splash_only)
 		goto main_done;
-	}
 
 	/*
 	 * The DBUS service launches later than the boot-splash service, and
@@ -493,16 +490,10 @@ int main(int argc, char* argv[])
 	 * We really need DBUS now, so we can interact with Chrome.
 	 */
 	dbus_init_wait();
-
 	/*
-	 * Ask DBUS to call us back so we can destroy splash (or quit) when login
-	 * prompt is visible.
+	 * Ask DBUS to call us back so we can quit when login prompt is visible.
 	 */
-	dbus_set_login_prompt_visible_callback(main_on_login_prompt_visible,
-					       (void*)splash);
-#if !DBUS
-	splash_destroy(splash);
-#endif
+	dbus_set_login_prompt_visible_callback(main_on_login_prompt_visible);
 	/*
 	 * Ask DBUS to notify us when suspend has finished so monitors can be reprobed
 	 * in case they changed during suspend.

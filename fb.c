@@ -76,17 +76,20 @@ void fb_buffer_destroy(fb_t* fb)
 	struct drm_mode_destroy_dumb destroy_dumb;
 
 	if (fb->buffer_handle <= 0)
-		return;
+		goto unref_drm;
 
-	drmModeRmFB(fb->drm->fd, fb->fb_id);
+	drm_rmfb(fb->drm, fb->fb_id);
 	fb->fb_id = 0;
 	destroy_dumb.handle = fb->buffer_handle;
 	drmIoctl(fb->drm->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_dumb);
 	fb->buffer_handle = 0;
 	fb->lock.map = NULL;
 	fb->lock.count = 0;
-	drm_delref(fb->drm);
-	fb->drm = NULL;
+unref_drm:
+	if (fb->drm) {
+		drm_delref(fb->drm);
+		fb->drm = NULL;
+	}
 }
 
 static bool parse_edid_dtd(uint8_t* dtd, drmModeModeInfo* mode,

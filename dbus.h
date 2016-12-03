@@ -21,8 +21,7 @@ void dbus_report_user_activity(int activity_type);
 bool dbus_take_display_ownership(void);
 bool dbus_release_display_ownership(void);
 bool dbus_is_initialized(void);
-void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
-					    void* userptr);
+void dbus_set_login_prompt_visible_callback(void (*callback)(void));
 void dbus_set_suspend_done_callback(void (*callback)(void*),
 				    void* userptr);
 

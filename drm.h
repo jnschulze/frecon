@@ -24,6 +24,7 @@ typedef struct _drm_t {
 	uint32_t selected_mode;
 	bool edid_found;
 	char edid[EDID_SIZE];
+	uint32_t delayed_rmfb_fb_id;
 } drm_t;
 
 drm_t* drm_scan(void);
@@ -36,6 +37,7 @@ int drm_setmaster(drm_t* drm);
 bool drm_rescan(void);
 bool drm_valid(drm_t* drm);
 int32_t drm_setmode(drm_t* drm, uint32_t fb_id);
+void drm_rmfb(drm_t* drm, uint32_t fb_id);
 bool drm_read_edid(drm_t* drm);
 uint32_t drm_gethres(drm_t* drm);
 uint32_t drm_getvres(drm_t* drm);

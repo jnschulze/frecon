@@ -221,12 +221,22 @@ static drmModeConnector* find_main_monitor(drm_t* drm, uint32_t* mode_index)
 	return main_monitor_connector;
 }
 
+static void drm_clear_rmfb(drm_t* drm)
+{
+	if (drm->delayed_rmfb_fb_id) {
+		drmModeRmFB(drm->fd, drm->delayed_rmfb_fb_id);
+		drm->delayed_rmfb_fb_id = 0;
+	}
+}
+
 static void drm_fini(drm_t* drm)
 {
 	if (!drm)
 		return;
 
 	if (drm->fd >= 0) {
+		drm_clear_rmfb(drm);
+
 		if (drm->crtc) {
 			drmModeFreeCrtc(drm->crtc);
 			drm->crtc = NULL;
@@ -431,6 +441,7 @@ void drm_delref(drm_t* drm)
 		return;
 	}
 
+	LOG(INFO, "Destroying drm device %p", drm);
 	drm_fini(drm);
 }
 
@@ -525,7 +536,20 @@ int32_t drm_setmode(drm_t* drm, uint32_t fb_id)
 		LOG(ERROR, "Unable to hide cursor");
 
 	drm_disable_non_primary_planes(drm);
+
+	drm_clear_rmfb(drm);
 	return ret;
+}
+
+/*
+ * Delayed rmfb(). We want to keep fb at least till after next modeset
+ * so our transitions are cleaner (e.g. when recreating term after exitin
+ * shell). Also it keeps fb around till Chrome starts.
+ */
+void drm_rmfb(drm_t* drm, uint32_t fb_id)
+{
+	drm_clear_rmfb(drm);
+	drm->delayed_rmfb_fb_id = fb_id;
 }
 
 bool drm_read_edid(drm_t* drm)

@@ -22,8 +22,7 @@
 
 typedef struct _dbus_t dbus_t;
 
-static void (*login_prompt_visible_callback)(void*) = NULL;
-static void* login_prompt_visible_callback_userptr = NULL;
+static void (*login_prompt_visible_callback)(void) = NULL;
 static void (*suspend_done_callback)(void*) = NULL;
 static void* suspend_done_callback_userptr = NULL;
 static bool chrome_is_already_up = false;
@@ -77,9 +76,8 @@ static void toggle_watch(DBusWatch* w, void* data)
 static DBusHandlerResult handle_login_prompt_visible(DBusMessage* message)
 {
 	if (login_prompt_visible_callback) {
-		login_prompt_visible_callback(login_prompt_visible_callback_userptr);
+		login_prompt_visible_callback();
 		login_prompt_visible_callback = NULL;
-		login_prompt_visible_callback_userptr = NULL;
 	}
 	chrome_is_already_up = true;
 
@@ -405,19 +403,17 @@ bool dbus_release_display_ownership(void)
 				      kReleaseDisplayOwnership);
 }
 
-void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
-					    void* userptr)
+void dbus_set_login_prompt_visible_callback(void (*callback)(void))
 {
 	if (chrome_is_already_up) {
 		if (callback)
-			callback(userptr);
+			callback();
 	} else {
 		if (login_prompt_visible_callback && callback) {
 			LOG(ERROR, "trying to register login prompt visible callback multiple times");
 			return;
 		}
 		login_prompt_visible_callback = callback;
-		login_prompt_visible_callback_userptr = userptr;
 	}
 }
 
@@ -478,8 +474,7 @@ bool dbus_is_initialized(void)
 	return true;
 }
 
-void dbus_set_login_prompt_visible_callback(void (*callback)(void*),
-					    void* userptr)
+void dbus_set_login_prompt_visible_callback(void (*callback)(void))
 {
 }
 
