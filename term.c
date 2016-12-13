@@ -828,7 +828,7 @@ int term_switch_to(unsigned int vt)
 	    && !command_flags.enable_vt1) {
 		term_set_current(vt);
 		/* Splash term is already gone, returning to Chrome. */
-		term_background();
+		term_background(false);
 		return vt;
 	}
 
@@ -928,24 +928,32 @@ void term_zoom(bool zoom_in)
 	}
 }
 
-void term_background(void)
+/*
+ * Put frecon in background. Give up DRM master.
+ * onetry - if true, do not retry to notify Chrome multiple times. For use at
+ * time when Chrome may be not around yet to receive the message.
+ */
+void term_background(bool onetry)
 {
-	int retry = 5;
+	int retry = onetry ? 1 : 5;
 	if (in_background)
 		return;
 	in_background = true;
 	drm_dropmaster(NULL);
 	while (!dbus_take_display_ownership() && retry--) {
+		if (onetry)
+			break;
 		LOG(ERROR, "Chrome failed to take display ownership. %s",
 		    retry ? "Trying again." : "Giving up, Chrome is probably dead.");
-		usleep(500 * 1000);
+		if (retry > 0)
+			usleep(500 * 1000);
 	}
 }
 
 void term_foreground(void)
 {
 	int ret;
-	unsigned retry = 5;
+	int retry = 5;
 
 	if (!in_background)
 		return;
@@ -954,7 +962,8 @@ void term_foreground(void)
 	while (!dbus_release_display_ownership() && retry--) {
 		LOG(ERROR, "Chrome did not release master. %s",
 		    retry ? "Trying again." : "Frecon will steal master.");
-		usleep(500 * 1000);
+		if (retry > 0)
+			usleep(500 * 1000);
 	}
 
 	ret = drm_setmaster(NULL);
