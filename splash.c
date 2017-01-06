@@ -23,7 +23,7 @@
 #include "term.h"
 #include "util.h"
 
-#define  MAX_SPLASH_IMAGES      (60)
+#define  MAX_SPLASH_IMAGES      (30)
 #define  MAX_SPLASH_WAITTIME    (8)
 
 typedef struct {
