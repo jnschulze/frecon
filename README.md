@@ -111,6 +111,24 @@ echo -ne "\033]image:file=/usr/share/chromeos-assets/images_100_percent/boot_spl
 echo -ne "\033]box:color=0xFFFFFFFF;size=100,100\033\\" > /dev/pts/1
 ```
 
+## Input escape code
+
+An escape code can be used to enable/disable keyboard input processing on
+a terminal. The setting is stored per terminal and applies to input "within"
+terminal. Swithing between terminals, scrolling, backlight control etc remains
+operational.
+
+`input:onoff`
+
+* where `onoff` is one of: on,1,true or off,0,false
+
+Examples:
+```sh
+echo -ne "\033]input:on\033\\" > /run/frecon/vt0
+echo -ne "\033]input:off\033\\" > /run/frecon/vt1
+```
+
+
 ## Files
 
 Frecon creates the following files and links in `/run/frecon` directory:

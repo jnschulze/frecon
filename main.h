@@ -18,7 +18,7 @@ typedef struct {
 	bool    enable_vts;
 	bool    enable_vt1;
 	bool    splash_only;
-	bool    enable_gfx;
+	bool    enable_osc;
 	bool    no_login;
 	bool    pre_create_vts;
 } commandflags_t;

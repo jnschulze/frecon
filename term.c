@@ -44,6 +44,7 @@ struct term {
 struct _terminal_t {
 	unsigned vt;
 	bool active;
+	bool input_enable;
 	uint32_t background;
 	bool background_valid;
 	fb_t* fb;
@@ -144,6 +145,9 @@ static void term_redraw(terminal_t* terminal)
 
 void term_key_event(terminal_t* terminal, uint32_t keysym, int32_t unicode)
 {
+	if (!terminal->input_enable)
+		return;
+
 	if (tsm_vte_handle_keyboard(terminal->term->vte, keysym, 0, 0, unicode))
 		tsm_screen_sb_reset(terminal->term->screen);
 
@@ -324,6 +328,20 @@ done:
 	;
 }
 
+static void term_esc_input(terminal_t* terminal, char* params)
+{
+	if (strcmp(params, "1") == 0 ||
+	    strcasecmp(params, "on") == 0 ||
+	    strcasecmp(params, "true") == 0)
+		term_input_enable(terminal, true);
+	else if (strcmp(params, "0") == 0 ||
+		 strcasecmp(params, "off") == 0 ||
+		 strcasecmp(params, "false") == 0)
+		term_input_enable(terminal, false);
+	else
+		LOG(ERROR, "Invalid parameter for input escape.\n");
+}
+
 static void term_osc_cb(struct tsm_vte *vte, const uint32_t *osc_string,
 			size_t osc_len, void *data)
 {
@@ -349,6 +367,8 @@ static void term_osc_cb(struct tsm_vte *vte, const uint32_t *osc_string,
 		term_esc_show_image(terminal, osc + 6);
 	else if (strncmp(osc, "box:", 4) == 0)
 		term_esc_draw_box(terminal, osc + 4);
+	else if (strncmp(osc, "input:", 6) == 0)
+		term_esc_input(terminal, osc + 6);
 	else
 		LOG(WARNING, "Unknown OSC escape sequence \"%s\", ignoring.", osc);
 
@@ -452,6 +472,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 
 	new_terminal->vt = vt;
 	new_terminal->background_valid = false;
+	new_terminal->input_enable = true;
 
 	new_terminal->fb = fb_init();
 
@@ -491,7 +512,7 @@ terminal_t* term_init(unsigned vt, int pts_fd)
 		return NULL;
 	}
 
-	if (command_flags.enable_gfx)
+	if (command_flags.enable_osc)
 		tsm_vte_set_osc_cb(new_terminal->term->vte, term_osc_cb, (void *)new_terminal);
 
 	new_terminal->term->pty_bridge = shl_pty_bridge_new();
@@ -979,4 +1000,9 @@ void term_foreground(void)
 void term_suspend_done(void* ignore)
 {
 	term_monitor_hotplug();
+}
+
+void term_input_enable(terminal_t* terminal, bool input_enable)
+{
+	terminal->input_enable = input_enable;
 }

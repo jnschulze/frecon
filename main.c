@@ -28,7 +28,7 @@
 
 #define  FLAG_CLEAR                        'c'
 #define  FLAG_DAEMON                       'd'
-#define  FLAG_ENABLE_GFX                   'G'
+#define  FLAG_ENABLE_OSC                   'G'
 #define  FLAG_ENABLE_VT1                   '1'
 #define  FLAG_ENABLE_VTS                   'e'
 #define  FLAG_FRAME_INTERVAL               'f'
@@ -52,7 +52,8 @@ static const struct option command_options[] = {
 	{ "clear", required_argument, NULL, FLAG_CLEAR },
 	{ "daemon", no_argument, NULL, FLAG_DAEMON },
 	{ "dev-mode", no_argument, NULL, FLAG_ENABLE_VTS },
-	{ "enable-gfx", no_argument, NULL, FLAG_ENABLE_GFX },
+	{ "enable-gfx", no_argument, NULL, FLAG_ENABLE_OSC },
+	{ "enable-osc", no_argument, NULL, FLAG_ENABLE_OSC },
 	{ "enable-vt1", no_argument, NULL, FLAG_ENABLE_VT1 },
 	{ "enable-vts", no_argument, NULL, FLAG_ENABLE_VTS },
 	{ "frame-interval", required_argument, NULL, FLAG_FRAME_INTERVAL },
@@ -75,8 +76,9 @@ static const struct option command_options[] = {
 static const char * const command_help[] = {
 	"Splash screen clear color.",
 	"Daemonize frecon.",
-	"Force dev mode behavior (same as --enable-vts).",
-	"Enable image and box drawing OSC escape codes.",
+	"Force dev mode behavior (deprecated, use --enable-vts).",
+	"Enable image and box drawing OSC escape codes (deprecated, use --enable-osc).",
+	"Enable OSC escape codes for graphics and input control.",
 	"Enable switching to VT1 and keep a terminal on it.",
 	"Enable additional terminals beyond VT1.",
 	"Default time (in msecs) between splash animation frames.",
@@ -317,8 +319,8 @@ int main(int argc, char* argv[])
 				command_flags.daemon = true;
 				break;
 
-			case FLAG_ENABLE_GFX:
-				command_flags.enable_gfx = true;
+			case FLAG_ENABLE_OSC:
+				command_flags.enable_osc = true;
 				break;
 
 			case FLAG_ENABLE_VT1:
