@@ -342,6 +342,20 @@ static void term_esc_input(terminal_t* terminal, char* params)
 		LOG(ERROR, "Invalid parameter for input escape.\n");
 }
 
+/*
+ * Assume all one or two digit sequences followed by ; are xterm OSC escapes.
+ */
+static bool is_xterm_osc(char *osc)
+{
+	if (isdigit(osc[0])) {
+		if (osc[1] == ';')
+			return true;
+		if (isdigit(osc[1]) && osc[2] == ';')
+			return true;
+	}
+	return false;
+}
+
 static void term_osc_cb(struct tsm_vte *vte, const uint32_t *osc_string,
 			size_t osc_len, void *data)
 {
@@ -355,7 +369,7 @@ static void term_osc_cb(struct tsm_vte *vte, const uint32_t *osc_string,
 
 	osc = malloc(osc_len + 1);
 	if (!osc) {
-		LOG(WARNING, "Out of memory when processing OSC\n");
+		LOG(WARNING, "Out of memory when processing OSC.\n");
 		return;
 	}
 
@@ -369,6 +383,8 @@ static void term_osc_cb(struct tsm_vte *vte, const uint32_t *osc_string,
 		term_esc_draw_box(terminal, osc + 4);
 	else if (strncmp(osc, "input:", 6) == 0)
 		term_esc_input(terminal, osc + 6);
+	else if (is_xterm_osc(osc))
+		; /* Ignore it. */
 	else
 		LOG(WARNING, "Unknown OSC escape sequence \"%s\", ignoring.", osc);
 
