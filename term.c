@@ -290,8 +290,8 @@ static void term_esc_draw_box(terminal_t* terminal, char* params)
 		startx = locx;
 		starty = locy;
 	} else {
-		startx = (fb_getwidth(terminal->fb) - (int32_t)w)/2;
-		starty = (fb_getheight(terminal->fb) - (int32_t)h)/2;
+		startx = (fb_getwidth(terminal->fb) - w)/2;
+		starty = (fb_getheight(terminal->fb) - h)/2;
 	}
 
 	if (use_offset) {
@@ -309,11 +309,11 @@ static void term_esc_draw_box(terminal_t* terminal, char* params)
 	/* Make sure we are inside buffer. */
 	if (startx < 0)
 		startx = 0;
-	if (startx + (int32_t)w > fb_getwidth(terminal->fb))
+	if (w > (uint32_t)(fb_getwidth(terminal->fb) - startx))
 		w = fb_getwidth(terminal->fb) - startx;
 	if (starty < 0)
 		starty = 0;
-	if (starty + (int32_t)h > fb_getheight(terminal->fb))
+	if (h > (uint32_t)(fb_getheight(terminal->fb) - starty))
 		h = fb_getheight(terminal->fb) - starty;
 
 	for (uint32_t y = 0; y < h; y++) {
