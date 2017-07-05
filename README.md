@@ -90,9 +90,11 @@ Frecon implements rudimentary functionality to display images and draw
 single color boxes on the terminal screen using OSC (Operating System Command)
 based terminal escape codes.
 
-The escape always starts with `\033]` for OSC code and ends with `\033\` ST
-code.  Two escapes are implemented, all escape parameters can be specified in
-any order.
+The OSC sequences always start with ESC+] (`\033]`) and end with either the
+String Terminator (ST) sequence (`\033\\`) or a BEL (`\a`) character.
+
+Two escapes are implemented, all escape parameters can be specified in any
+order.
 
 `image:file=/full/path/to/file.png;location=x,y;offset=x,y;scale=s`
 
@@ -107,8 +109,8 @@ any order.
 
 Examples:
 ```sh
-echo -ne "\033]image:file=/usr/share/chromeos-assets/images_100_percent/boot_splash_frame18.png\033\\" > /dev/pts/1
-echo -ne "\033]box:color=0xFFFFFFFF;size=100,100\033\\" > /dev/pts/1
+printf "\033]image:file=/usr/share/chromeos-assets/images_100_percent/boot_splash_frame18.png\a" > /dev/pts/1
+printf "\033]box:color=0xFFFFFFFF;size=100,100\a" > /dev/pts/1
 ```
 
 ## Input escape code
@@ -124,8 +126,8 @@ operational.
 
 Examples:
 ```sh
-echo -ne "\033]input:on\033\\" > /run/frecon/vt0
-echo -ne "\033]input:off\033\\" > /run/frecon/vt1
+printf "\033]input:on\a" > /run/frecon/vt0
+printf "\033]input:off\a" > /run/frecon/vt1
 ```
 
 
