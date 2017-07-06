@@ -369,7 +369,6 @@ int main(int argc, char* argv[])
 	if (command_flags.daemon) {
 		int status;
 
-		fprintf(stdout, "%s\n", ptsname(pts_fd));
 		daemonize(command_flags.pre_create_vts);
 		status = mkdir(FRECON_RUN_DIR, S_IRWXU);
 		if (status == 0 || (status < 0 && errno == EEXIST)) {
