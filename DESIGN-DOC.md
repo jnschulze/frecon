@@ -1,4 +1,3 @@
-Note: This is an exported copy of https://docs.google.com/a/google.com/document/d/1DYEqfg3v-tITx28kciMb6mNAOeTfy2bIRsnhx9OtQwQ/preview
 [TOC]
 
 # Frecon, a console for freon
