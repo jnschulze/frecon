@@ -471,7 +471,7 @@ int main(int argc, char* argv[])
 	for (int i = optind; i < argc; i++)
 		splash_add_image(splash, argv[i]);
 
-	if (splash_num_images(splash) > 0) {
+	if (drm && splash_num_images(splash) > 0) {
 		ret = splash_run(splash);
 		if (ret) {
 			LOG(ERROR, "Splash_run failed: %d.", ret);
