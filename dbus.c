@@ -384,10 +384,10 @@ bool dbus_take_display_ownership(void)
 {
 	if (!dbus)
 		return true;
-	return dbus_method_call0_bool(kLibCrosServiceName,
-				      kLibCrosServicePath,
-				      kLibCrosServiceInterface,
-				      kTakeDisplayOwnership);
+	return dbus_method_call0_bool(kDisplayServiceName,
+				      kDisplayServicePath,
+				      kDisplayServiceInterface,
+				      kTakeOwnership);
 }
 
 /*
@@ -397,10 +397,10 @@ bool dbus_release_display_ownership(void)
 {
 	if (!dbus)
 		return true;
-	return dbus_method_call0_bool(kLibCrosServiceName,
-				      kLibCrosServicePath,
-				      kLibCrosServiceInterface,
-				      kReleaseDisplayOwnership);
+	return dbus_method_call0_bool(kDisplayServiceName,
+				      kDisplayServicePath,
+				      kDisplayServiceInterface,
+				      kReleaseOwnership);
 }
 
 void dbus_set_login_prompt_visible_callback(void (*callback)(void))

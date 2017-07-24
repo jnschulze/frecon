@@ -40,12 +40,12 @@ static const char kSessionManagerServiceName[] = "org.chromium.SessionManager";
 static const char kLoginPromptVisibleSignal[] = "LoginPromptVisible";
 static const char kLoginPromptVisibleRule[] = "interface='org.chromium.SessionManagerInterface',type='signal'";
 
-static const char kLibCrosServiceName[] = "org.chromium.LibCrosService";
-static const char kLibCrosServicePath[] = "/org/chromium/LibCrosService";
-static const char kLibCrosServiceInterface[] =
-  "org.chromium.LibCrosServiceInterface";
-static const char kTakeDisplayOwnership[] = "TakeDisplayOwnership";
-static const char kReleaseDisplayOwnership[] = "ReleaseDisplayOwnership";
+static const char kDisplayServiceName[] = "org.chromium.DisplayService";
+static const char kDisplayServicePath[] = "/org/chromium/DisplayService";
+static const char kDisplayServiceInterface[] =
+  "org.chromium.DisplayServiceInterface";
+static const char kTakeOwnership[] = "TakeOwnership";
+static const char kReleaseOwnership[] = "ReleaseOwnership";
 
 static const char kFreconDbusInterface[] = "org.chromium.frecon";
 static const char kFreconDbusPath[] = "/org/chromium/frecon";
