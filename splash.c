@@ -128,6 +128,7 @@ int splash_run(splash_t* splash)
 	image_t* image;
 	uint32_t duration;
 	int32_t c, loop_start, loop_count;
+	bool active = false;
 
 	terminal_t *terminal = term_get_terminal(TERM_SPLASH_TERMINAL);
 	if (!terminal)
@@ -139,7 +140,6 @@ int splash_run(splash_t* splash)
 	term_set_background(terminal, splash->clear);
 	term_clear(terminal);
 	term_set_current_to(terminal);
-	term_activate(terminal);
 
 	last_show_ms = -1;
 	loop_count = (splash->loop_start >= 0 && splash->loop_start < splash->num_images) ? splash->loop_count : 1;
@@ -189,6 +189,16 @@ int splash_run(splash_t* splash)
 			ec_ts++;
 			goto img_error;
 		}
+
+		if (!active) {
+			/*
+			 * Set video mode on first frame so user does not see
+			 * us drawing first frame.
+			 */
+			term_activate(terminal);
+			active = true;
+		}
+
 		status = main_process_events(1);
 		if (status != 0 && ec_ip < MAX_SPLASH_IMAGES) {
 			LOG(WARNING, "input_process failed: %d:%s.", status, strerror(status));
