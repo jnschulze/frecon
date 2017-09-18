@@ -475,7 +475,8 @@ int main(int argc, char* argv[])
 		ret = splash_run(splash);
 		if (ret) {
 			LOG(ERROR, "Splash_run failed: %d.", ret);
-			return EXIT_FAILURE;
+			if (!command_flags.daemon)
+				return EXIT_FAILURE;
 		}
 	}
 
