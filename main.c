@@ -85,7 +85,7 @@ static const char * const command_help[] = {
 	"This help screen!",
 	"Image (low res) to use for splash animation.",
 	"Image (hi res) to use for splash animation.",
-	"Number of times to loop splash animations (0 = forever).",
+	"Number of times to loop splash animations (unset = forever).",
 	"First frame to start the splash animation loop (and enable looping).",
 	"Pause time (in msecs) between splash animation frames.",
 	"Offset (as x,y) for centering looped image.",
