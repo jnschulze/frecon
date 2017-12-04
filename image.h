@@ -14,6 +14,7 @@
 #include "fb.h"
 
 #define HIRES_THRESHOLD_HR 1920
+#define HIRES_THRESHOLD_VR 1920
 #define MAX_SCALE_FACTOR 100
 
 typedef struct _image_t image_t;
@@ -28,6 +29,7 @@ int image_load_image_from_file(image_t* image);
 int image_show(image_t* image, fb_t* fb);
 void image_release(image_t* image);
 void image_destroy(image_t* image);
+int image_is_hires(fb_t* fb);
 int32_t image_get_auto_scale(fb_t* fb);
 
 #endif

@@ -295,9 +295,15 @@ void image_set_scale(image_t* image, uint32_t scale)
 		image->scale = scale;
 }
 
+int image_is_hires(fb_t* fb)
+{
+	return fb_getwidth(fb) > HIRES_THRESHOLD_HR ||
+	       fb_getheight(fb) > HIRES_THRESHOLD_VR;
+}
+
 int32_t image_get_auto_scale(fb_t* fb)
 {
-	if (fb_getwidth(fb) > HIRES_THRESHOLD_HR)
+	if (image_is_hires(fb))
 		return 2;
 	else
 		return 1;

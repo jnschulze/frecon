@@ -286,7 +286,7 @@ int splash_is_hires(splash_t* splash)
 		return 0;
 
 	if (term_getfb(terminal))
-		return fb_getwidth(term_getfb(terminal)) > HIRES_THRESHOLD_HR;
+		return image_is_hires(term_getfb(terminal));
 	return 0;
 }
 

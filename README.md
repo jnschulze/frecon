@@ -78,8 +78,8 @@ when extra terminals are not enabled.
 * `--image-hires=/path/to/image.png`
 or any image file name specified after options
 	Add image to splash screen animation. `--image` and `--image-hires` are
-added conditionally depending whether horizontal screen resolution is below
-or above 1920. This allows frecon to make runtime decision which set of images
+added conditionally depending whether horizontal or vertical screen resolution
+is above 1920. This allows frecon to make runtime decision which set of images
 to use instead running frecon first with `--print-resolution` option and making
 this decision in a script that invokes frecon.
 Free form image file name in the command line are added unconditionally.
