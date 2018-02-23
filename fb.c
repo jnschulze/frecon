@@ -197,7 +197,7 @@ int fb_buffer_init(fb_t* fb)
 		int dots_per_cm = width * 10 / hsize_mm;
 		if (dots_per_cm > 133)
 			fb->buffer_properties.scaling = 4;
-		else if (dots_per_cm > 100)
+		else if (dots_per_cm > 105)
 			fb->buffer_properties.scaling = 3;
 		else if (dots_per_cm > 67)
 			fb->buffer_properties.scaling = 2;
